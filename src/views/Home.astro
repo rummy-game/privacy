@@ -21,7 +21,6 @@ const text = {
     ],
     privH: 'Ohne Konto und ohne Netzwerk',
     priv: 'Die App braucht kein Nutzerkonto, keine Berechtigungen und keine Internetverbindung. Was du einstellst und spielst, bleibt auf deinem Gerät.',
-    state: 'Die App ist in Vorbereitung und noch nicht bei Google Play erschienen.',
     rules: 'Spielregeln lesen',
   },
   en: {
@@ -40,7 +39,6 @@ const text = {
     ],
     privH: 'No account and no network',
     priv: 'The app needs no user account, no permissions and no internet connection. What you set up and play stays on your device.',
-    state: 'The app is in preparation and is not yet available on Google Play.',
     rules: 'Read the rules',
   },
 }[lang];
@@ -49,7 +47,6 @@ const text = {
 <Base lang={lang} page="home" title={text.title} description={text.description}>
   <h1>{text.h1}</h1>
   <p class="lead">{text.lead}</p>
-  <p class="meta">{text.state}</p>
 
   <h2>{text.factsH}</h2>
   <ul class="facts">
