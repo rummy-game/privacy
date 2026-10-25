@@ -39,6 +39,12 @@ const HOUR_MS = 3600 * 1000;
 /** Tageslimit des Mailanbieters (Brevo kostenlos: 300) mit etwas Reserve. */
 export const MAX_MAILS_PER_DAY = 250;
 
+/** Nur für den internen Test: Für diese Adressen gilt ein fester Code, es wird keine Mail verschickt. */
+export interface TestLogin {
+  emails: Set<string>;
+  code: string;
+}
+
 export interface AuthResult {
   error: string | null;
   account?: { id: string; secret: string; name: string; isNew: boolean };
@@ -82,6 +88,7 @@ export class Service {
     private clock: () => number = Date.now,
     private rng: Rng,
     private mailer: Mailer = new NoMailer(),
+    private testLogin: TestLogin | null = null,
   ) {}
 
   // --- Konten ---
@@ -114,6 +121,19 @@ export class Service {
     if (purpose === 'delete' && !(await this.store.findAccountByEmail(email))) return { error: null };
 
     const now = this.clock();
+    if (this.testLogin && this.testLogin.emails.has(email)) {
+      await this.store.putCode({
+        email,
+        purpose,
+        codeHash: await sha256(`${email}|${purpose}|${this.testLogin.code}`),
+        expiresAt: now + CODE_TTL_MS,
+        attempts: 0,
+        sentAt: now,
+        windowStart: now,
+        sentCount: 1,
+      });
+      return { error: null };
+    }
     const old = await this.store.getCode(email, purpose);
     let windowStart = now;
     let sentCount = 1;

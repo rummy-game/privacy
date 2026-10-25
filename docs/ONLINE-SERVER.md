@@ -41,6 +41,7 @@ npm run build && npx wrangler pages dev dist --port 8788   # echter Dienst mit l
 - Cloudflare-Konto Fsnavivfr@gmail.com, D1-Datenbank `rummy` (Region WEUR, ID in `wrangler.toml`), alle drei Migrationen eingespielt, Pages-Projekt `rummy-game`, Adresse **https://rummy-game-6ke.pages.dev** (Produktions-Zweig `main`, Direkt-Upload mit `wrangler pages deploy dist --project-name rummy-game --branch main`).
 - Secret `MAINTENANCE_TOKEN` im Pages-Projekt und als GitHub-Secret (`ONLINE_URL`, `MAINTENANCE_TOKEN`) für `.github/workflows/maintenance.yml`.
 - **Offen:** `BREVO_API_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` (ohne sie meldet `/api/auth/start` „mail"): `wrangler pages secret put BREVO_API_KEY --project-name rummy-game`, Variablen im Dashboard unter Einstellungen → Variablen und Secrets.
+- **Interner Test ohne Mailversand:** Secrets `TEST_EMAILS` (Komma-Liste, derzeit `test1@`, `test2@`, `test3@rummy-test.invalid`) und `TEST_CODE` (sechsstellig) im Pages-Projekt: Für diese Adressen gilt der feste Code, es wird nichts verschickt. **Vor dem öffentlichen Start beide Secrets löschen** (`wrangler pages secret delete TEST_CODE --project-name rummy-game`, ebenso `TEST_EMAILS`).
 - `wrangler` meldet sich per OAuth an (`npx.cmd wrangler login` im Terminal, vorher `CLOUDFLARE_API_TOKEN` leeren: das Token in der Umgebung gehört zu den anderen Seiten und hat keine D1-Rechte).
 
 ## Anmeldung per E-Mail (Branch `feature/email-registration`)

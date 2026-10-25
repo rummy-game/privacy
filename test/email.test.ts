@@ -135,6 +135,21 @@ describe('E-Mail-Anmeldung', () => {
     expect(store.secrets.has(acc.id)).toBe(false);
   });
 
+  it('Testadressen: fester Code ohne Mail, alle anderen Adressen bleiben beim Mailversand', async () => {
+    const mailer = new MemoryMailer();
+    const service = new Service(new MemoryStore(), () => 1_000_000, mulberry(2), mailer, { emails: new Set(['test1@rummy-test.invalid']), code: '424242' });
+    expect((await service.startAuth('Test1@rummy-test.invalid', 'login', 'de')).error).toBeNull();
+    expect(mailer.sent).toHaveLength(0);
+    expect((await service.verifyAuth('test1@rummy-test.invalid', '111111', 'login')).error).toBe('code');
+    const ok = await service.verifyAuth('test1@rummy-test.invalid', '424242', 'login');
+    expect(ok.account?.isNew).toBe(true);
+    // Andere Adresse mit dem Testcode: kein Code vorhanden.
+    expect((await service.verifyAuth('anna@example.com', '424242', 'login')).error).toBe('code');
+    await service.startAuth('anna@example.com', 'login', 'de');
+    expect(mailer.sent).toHaveLength(1);
+    expect((await service.verifyAuth('anna@example.com', '424242', 'login')).error).toBe('code');
+  });
+
   it('alte Codes werden beim täglichen Aufräumen gelöscht', async () => {
     const { service, store, clock, mailer } = setup();
     await service.startAuth('l@example.com', 'login', 'de');
