@@ -33,6 +33,6 @@ Immer neu erzeugen, wenn sich der Regeltext in der App ändert. Die Platzhalter 
 
 ## Offen vor der Veröffentlichung
 
-- Hosting und Domain festlegen (bei den anderen Apps: `<app>-app`-Organisation mit GitHub Pages bzw. Cloudflare Pages). Danach in `Privacy.astro` Abschnitt 5 den Hosting-Anbieter nennen.
+- Hosting und Domain festlegen (bei den anderen Apps: `<app>-app`-Organisation mit GitHub Pages bzw. Cloudflare Pages). Der Hoster (GitHub Pages) ist in `Privacy.astro` Abschnitt 5 genannt; bei Wechsel anpassen.
 - Die Texte sind Entwürfe nach dem Muster der Geschwister-Apps und nicht anwaltlich geprüft.
 - In der App muss ein Link „Impressum" (deutsche Beschriftung) auf `/impressum/` zeigen; der Datenschutz-Link auf `/datenschutz/`.
