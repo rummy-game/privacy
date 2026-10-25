@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import type { Lang } from '../i18n';
+import { paths, type Lang } from '../i18n';
 
 const { lang } = Astro.props as { lang: Lang };
 ---
@@ -8,7 +8,7 @@ const { lang } = Astro.props as { lang: Lang };
 {lang === 'de' ? (
   <Base lang="de" page="privacy" title="Datenschutzerklärung – Rummy" description="Datenschutzerklärung für die Android-App Rummy und diese Website.">
     <h1>Datenschutzerklärung</h1>
-    <p class="meta">Stand: 25. Oktober 2026. Diese Erklärung gilt für die Android-App <strong>Rummy</strong> (Paket-ID: <code>rp.rummy</code>) und diese Website.</p>
+    <p class="meta">Stand: 26. Oktober 2026. Diese Erklärung gilt für die Android-App <strong>Rummy</strong> (Paket-ID: <code>rp.rummy</code>), den zugehörigen Online-Dienst und diese Website.</p>
 
     <h2>1. Verantwortlicher</h2>
     <address>
@@ -20,7 +20,7 @@ const { lang } = Astro.props as { lang: Lang };
     <p>E-Mail: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a></p>
 
     <h2>2. Überblick</h2>
-    <p>Rummy ist ein Plättchenspiel, das vollständig auf deinem Gerät läuft. Es gibt kein Nutzerkonto, keine Registrierung und keinen eigenen Server. Die App fordert keine Berechtigungen an, die du erteilen müsstest, und hat keine Berechtigung zur Internetnutzung; sie kann von sich aus keine Daten übertragen. Android-Bibliotheken legen lediglich eine rein interne Berechtigung an, die nur die App selbst betrifft und keinen Zugriff auf Daten oder Geräte gibt. Werbe-, Analyse- oder Tracking-Dienste sind nicht eingebunden.</p>
+    <p>Rummy ist ein Plättchenspiel. Die Spielarten gegen den Computer und abwechselnd an einem Gerät laufen vollständig auf deinem Gerät, ohne Konto und ohne Netzwerk. Zusätzlich gibt es den <strong>Online-Modus</strong>: Er ist freiwillig, und nur wenn du ihn öffnest und eine Online-Partie nutzt, verbindet sich die App mit dem Online-Dienst (siehe Abschnitt 4). Dafür hat die App die Berechtigung zur Internetnutzung; sie verlangt keine weiteren Berechtigungen, die du erteilen müsstest. Android-Bibliotheken legen außerdem eine rein interne Berechtigung an, die nur die App selbst betrifft und keinen Zugriff auf Daten oder Geräte gibt. Werbe-, Analyse- oder Tracking-Dienste sind nicht eingebunden.</p>
 
     <h2>3. Daten in der App</h2>
     <p>Die App speichert folgende Angaben ausschließlich lokal im app-eigenen Speicher deines Geräts:</p>
@@ -28,29 +28,46 @@ const { lang } = Astro.props as { lang: Lang };
       <li>deine Einstellungen (Sprache, Regeln, Tischfarbe, Töne, Lautstärke, Farbenblind-Symbole),</li>
       <li>optional eingegebene Spielernamen,</li>
       <li>den Spielstand einer laufenden Partie, damit du sie fortsetzen kannst,</li>
-      <li>eine Statistik über deine Partien gegen den Computer.</li>
+      <li>eine Statistik über deine Partien gegen den Computer,</li>
+      <li>wenn du den Online-Modus nutzt: die Adresse des Online-Dienstes sowie die Konto-Kennung und den geheimen Schlüssel deines anonymen Online-Kontos.</li>
     </ul>
-    <p>Diese Daten werden nicht an den Anbieter oder an Dritte übermittelt. Du kannst sie jederzeit löschen, indem du die App-Daten in den Android-Einstellungen löschst oder die App deinstallierst. Die automatische Android-Sicherung ist für die App abgeschaltet; die Daten werden also nicht in eine Sicherung deines Google-Kontos einbezogen.</p>
+    <p>Diese Daten werden, mit Ausnahme der Angaben zum Online-Modus (Abschnitt 4), nicht an den Anbieter oder an Dritte übermittelt. Du kannst sie jederzeit löschen, indem du die App-Daten in den Android-Einstellungen löschst oder die App deinstallierst. Die automatische Android-Sicherung ist für die App abgeschaltet; die Daten werden also nicht in eine Sicherung deines Google-Kontos einbezogen.</p>
 
-    <h2>4. Installation über Google Play</h2>
+    <h2>4. Online-Modus (freiwillig)</h2>
+    <p>Im Online-Modus spielst du mit anderen Personen auf verschiedenen Geräten. Dafür betreibe ich einen Online-Dienst. Er läuft bei <strong>Cloudflare</strong> (Cloudflare, Inc., 101 Townsend Street, San Francisco, CA 94107, USA) mit den Diensten Pages, Workers und D1 als Auftragsverarbeiter. Ohne Nutzung des Online-Modus findet keine Verbindung zu diesem Dienst statt.</p>
+    <p><strong>Anonymes Konto.</strong> Es gibt keine Registrierung mit E-Mail-Adresse, Klarnamen oder Telefonnummer. Beim ersten Öffnen des Online-Modus legt der Dienst ein anonymes Konto an: eine zufällige Konto-Kennung, einen zufälligen geheimen Schlüssel (auf dem Server nur als Prüfwert gespeichert, nicht im Klartext) und einen vom Dienst zufällig vergebenen Spielernamen, zum Beispiel „Flinker-Fuchs-417“. Du kannst einen neuen Zufallsnamen würfeln. Eigene Namen oder Freitext, etwa ein Chat, gibt es nicht.</p>
+    <p><strong>Welche Daten entstehen.</strong></p>
+    <ul>
+      <li>Konto: Kennung, Prüfwert des Schlüssels, Spielername, Zeitpunkt der Anlage.</li>
+      <li>Partien: Einladungscode, Regeln, Plätze mit den Spielernamen, der gesamte Spielstand (Ablagen, Tisch, Vorrat, Zugnummer, letzte Aktion, Zugfrist) und das Ergebnis. Diese Daten braucht der Dienst, um die Züge zu prüfen und allen Mitspielenden ihre Sicht zu zeigen.</li>
+      <li>Technische Verbindungsdaten: Beim Aufruf verarbeitet Cloudflare technisch notwendige Daten wie die IP-Adresse, Zeitpunkt, aufgerufene Adresse und Browser- bzw. App-Kennung in eigenen Protokollen, um den Dienst auszuliefern und abzusichern. Ich selbst werte IP-Adressen nicht aus und speichere sie nicht in der Spieldatenbank.</li>
+    </ul>
+    <p><strong>Was Mitspielende sehen.</strong> Andere Personen in derselben Partie sehen deinen Spielernamen, die Zahl deiner Plättchen, den Tisch und deine Züge. Deine Plättchen auf der Hand sehen sie nicht. Dein Name ist außerhalb gemeinsamer Partien nicht öffentlich einsehbar; wer ihn kennt, kann dich aber zu einer Partie einladen.</p>
+    <p><strong>Zweck und Rechtsgrundlage.</strong> Die Verarbeitung dient dazu, Online-Partien durchzuführen (Art. 6 Abs. 1 lit. b DSGVO), und der Sicherheit und Stabilität des Dienstes (Art. 6 Abs. 1 lit. f DSGVO).</p>
+    <p><strong>Speicherdauer.</strong> Beendete Partien werden spätestens 30 Tage nach Spielende gelöscht, nie gestartete Partien nach sieben Tagen. Das Konto bleibt bestehen, bis du es löschst (siehe unten). Wer eine Partie verlässt, wird dort durch den Computer ersetzt.</p>
+    <p><strong>Konto löschen.</strong> In der App unter „Online spielen“ → „Konto löschen“. Dabei werden das Konto und die Zuordnung zu deinen Partien gelöscht, laufende Partien werden aufgegeben. Auch ohne die App kannst du die Löschung beantragen: <a href={paths.de.deletion}>Konto löschen</a>.</p>
+    <p><strong>Standort und Übermittlung in Drittländer.</strong> Die Datenbank wird mit einem Standortwunsch für Europa angelegt; Cloudflare verarbeitet Anfragen jedoch über sein weltweites Netz, sodass eine Verarbeitung auch in den USA und anderen Ländern möglich ist. Cloudflare stützt sich dafür nach eigenen Angaben auf das EU-US Data Privacy Framework und Standardvertragsklauseln.</p>
+    <p><strong>Zielgruppe.</strong> Die App richtet sich an Personen ab 18 Jahren.</p>
+
+    <h2>5. Installation über Google Play</h2>
     <p>Beim Herunterladen der App über Google Play verarbeitet Google Daten nach eigener Verantwortung, zum Beispiel für Kontoverwaltung, Download und Zahlungsabwicklung. Darauf hat der Anbieter keinen Einfluss. Näheres steht in der Datenschutzerklärung von Google.</p>
 
-    <h2>5. Diese Website</h2>
-    <p>Diese Website wird über GitHub Pages gehostet (Anbieter: GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, ein Unternehmen von Microsoft). Beim Aufruf verarbeitet GitHub technisch notwendige Daten (IP-Adresse, Datum und Uhrzeit, aufgerufene Seite, Browsertyp) in Server-Protokollen, um die Seite auszuliefern und den Betrieb abzusichern. Dabei kann eine Übermittlung in die USA stattfinden; GitHub stützt sich dafür nach eigenen Angaben auf das EU-US Data Privacy Framework bzw. Standardvertragsklauseln. Die Speicherdauer der Server-Protokolle legt GitHub fest; Einzelheiten stehen in der Datenschutzerklärung von GitHub. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einem sicheren und stabilen Betrieb). Die Website verwendet keine Cookies, keine Analyse- und keine Tracking-Dienste und lädt keine Schriftarten oder Skripte von Dritten.</p>
+    <h2>6. Diese Website</h2>
+    <p>Diese Website wird über GitHub Pages gehostet und kann zusätzlich über Cloudflare Pages erreichbar sein (siehe Abschnitt 4 zu Cloudflare) (Anbieter: GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, ein Unternehmen von Microsoft). Beim Aufruf verarbeitet GitHub technisch notwendige Daten (IP-Adresse, Datum und Uhrzeit, aufgerufene Seite, Browsertyp) in Server-Protokollen, um die Seite auszuliefern und den Betrieb abzusichern. Dabei kann eine Übermittlung in die USA stattfinden; GitHub stützt sich dafür nach eigenen Angaben auf das EU-US Data Privacy Framework bzw. Standardvertragsklauseln. Die Speicherdauer der Server-Protokolle legt GitHub fest; Einzelheiten stehen in der Datenschutzerklärung von GitHub. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einem sicheren und stabilen Betrieb). Die Website verwendet keine Cookies, keine Analyse- und keine Tracking-Dienste und lädt keine Schriftarten oder Skripte von Dritten.</p>
 
-    <h2>6. Kontakt per E-Mail</h2>
+    <h2>7. Kontakt per E-Mail</h2>
     <p>Wenn du mir schreibst, verarbeite ich deine E-Mail-Adresse und den Inhalt deiner Nachricht, um sie zu beantworten (Art. 6 Abs. 1 lit. b oder f DSGVO). Die Daten werden gelöscht, sobald die Anfrage erledigt ist und keine Aufbewahrungspflichten entgegenstehen.</p>
 
-    <h2>7. Deine Rechte</h2>
+    <h2>8. Deine Rechte</h2>
     <p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Wende dich dafür an die oben genannte E-Mail-Adresse. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren, in Bayern beim Bayerischen Landesamt für Datenschutzaufsicht, Promenade 18, 91522 Ansbach.</p>
 
-    <h2>8. Änderungen</h2>
-    <p>Wenn die App künftig Funktionen bekommt, die Daten übertragen (zum Beispiel Online-Mehrspieler oder Käufe), wird diese Erklärung vorher angepasst. Die jeweils gültige Fassung steht hier.</p>
+    <h2>9. Änderungen</h2>
+    <p>Wenn die App künftig weitere Funktionen bekommt, die Daten übertragen (zum Beispiel Käufe oder einen Chat), wird diese Erklärung vorher angepasst. Die jeweils gültige Fassung steht hier.</p>
   </Base>
 ) : (
   <Base lang="en" page="privacy" title="Privacy policy – Rummy" description="Privacy policy for the Android app Rummy and this website.">
     <h1>Privacy policy</h1>
-    <p class="meta">Last updated: 25 October 2026. This policy applies to the Android app <strong>Rummy</strong> (package ID: <code>rp.rummy</code>) and this website.</p>
+    <p class="meta">Last updated: 26 October 2026. This policy applies to the Android app <strong>Rummy</strong> (package ID: <code>rp.rummy</code>), the related online service and this website.</p>
 
     <h2>1. Controller</h2>
     <address>
@@ -62,7 +79,7 @@ const { lang } = Astro.props as { lang: Lang };
     <p>Email: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a></p>
 
     <h2>2. Overview</h2>
-    <p>Rummy is a tile game that runs entirely on your device. There is no user account, no registration and no server of its own. The app requests no permissions that you would need to grant and has no permission to use the internet, so it cannot transmit data on its own. Android libraries merely add a purely internal permission that concerns only the app itself and gives no access to data or devices. No advertising, analytics or tracking services are included.</p>
+    <p>Rummy is a tile game. Playing against the computer and taking turns on one device run entirely on your device, without an account and without a network. There is also an <strong>online mode</strong>: it is optional, and the app connects to the online service only if you open it and use an online game (see section 4). For this the app has the permission to use the internet; it requests no other permissions that you would need to grant. Android libraries also add a purely internal permission that concerns only the app itself and gives no access to data or devices. No advertising, analytics or tracking services are included.</p>
 
     <h2>3. Data in the app</h2>
     <p>The app stores the following information only locally, in the app’s private storage on your device:</p>
@@ -70,23 +87,40 @@ const { lang } = Astro.props as { lang: Lang };
       <li>your settings (language, rules, table colour, sounds, volume, colour-blind symbols),</li>
       <li>player names, if you enter any,</li>
       <li>the state of a game in progress, so you can resume it,</li>
-      <li>statistics about your games against the computer.</li>
+      <li>statistics about your games against the computer,</li>
+      <li>if you use the online mode: the address of the online service and the ID and secret key of your anonymous online account.</li>
     </ul>
-    <p>This data is not sent to the provider or to third parties. You can delete it at any time by clearing the app’s data in Android settings or by uninstalling the app. Android’s automatic backup is switched off for the app, so the data is not included in a backup of your Google account.</p>
+    <p>With the exception of the online mode details (section 4), this data is not sent to the provider or to third parties. You can delete it at any time by clearing the app’s data in Android settings or by uninstalling the app. Android’s automatic backup is switched off for the app, so the data is not included in a backup of your Google account.</p>
 
-    <h2>4. Installation through Google Play</h2>
+    <h2>4. Online mode (optional)</h2>
+    <p>In the online mode you play with other people on different devices. For this I run an online service. It runs at <strong>Cloudflare</strong> (Cloudflare, Inc., 101 Townsend Street, San Francisco, CA 94107, USA) using Pages, Workers and D1 as processor. If you do not use the online mode, the app does not connect to this service.</p>
+    <p><strong>Anonymous account.</strong> There is no registration with an email address, real name or phone number. When you first open the online mode, the service creates an anonymous account: a random account ID, a random secret key (stored on the server only as a check value, not in plain text) and a player name assigned at random by the service, for example “Flinker-Fuchs-417”. You can roll a new random name. There are no custom names and no free text such as a chat.</p>
+    <p><strong>What data is created.</strong></p>
+    <ul>
+      <li>Account: ID, check value of the key, player name, time of creation.</li>
+      <li>Games: invitation code, rules, seats with player names, the full game state (racks, table, pool, turn number, last action, turn deadline) and the result. The service needs this to validate moves and to show every player their own view.</li>
+      <li>Technical connection data: when you connect, Cloudflare processes technically necessary data such as the IP address, time, requested address and browser or app identifier in its own logs to deliver and secure the service. I do not evaluate IP addresses myself and do not store them in the game database.</li>
+    </ul>
+    <p><strong>What other players see.</strong> Other people in the same game see your player name, the number of your tiles, the table and your moves. They do not see the tiles on your rack. Your name is not publicly visible outside shared games, but anyone who knows it can invite you to a game.</p>
+    <p><strong>Purpose and legal basis.</strong> The processing serves to run online games (Art. 6(1)(b) GDPR) and the security and stability of the service (Art. 6(1)(f) GDPR).</p>
+    <p><strong>Retention.</strong> Finished games are deleted at the latest 30 days after the game ends, games that were never started after seven days. The account remains until you delete it (see below). Anyone who leaves a game is replaced there by the computer.</p>
+    <p><strong>Deleting your account.</strong> In the app under “Play online” → “Delete account”. This deletes the account and its link to your games; running games are forfeited. You can also request deletion without the app: <a href={paths.en.deletion}>Delete account</a>.</p>
+    <p><strong>Location and transfers to third countries.</strong> The database is created with a location hint for Europe; however, Cloudflare processes requests through its global network, so processing in the USA and other countries is possible. According to its own statements Cloudflare relies on the EU-US Data Privacy Framework and standard contractual clauses.</p>
+    <p><strong>Audience.</strong> The app is intended for people aged 18 and over.</p>
+
+    <h2>5. Installation through Google Play</h2>
     <p>When you download the app from Google Play, Google processes data under its own responsibility, for example for account management, download and payment. The provider has no influence on this. See Google’s privacy policy for details.</p>
 
-    <h2>5. This website</h2>
-    <p>This website is hosted on GitHub Pages (provider: GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, a Microsoft company). When you visit it, GitHub processes technically necessary data (IP address, date and time, requested page, browser type) in server logs to deliver the site and keep it secure. This may involve a transfer to the USA; according to its own statements GitHub relies on the EU-US Data Privacy Framework or standard contractual clauses. GitHub determines how long the server logs are kept; details are in GitHub’s privacy statement. The legal basis is Art. 6(1)(f) GDPR (legitimate interest in secure and stable operation). The website uses no cookies, no analytics or tracking services, and loads no fonts or scripts from third parties.</p>
+    <h2>6. This website</h2>
+    <p>This website is hosted on GitHub Pages and may also be reachable through Cloudflare Pages (see section 4 on Cloudflare) (provider: GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, a Microsoft company). When you visit it, GitHub processes technically necessary data (IP address, date and time, requested page, browser type) in server logs to deliver the site and keep it secure. This may involve a transfer to the USA; according to its own statements GitHub relies on the EU-US Data Privacy Framework or standard contractual clauses. GitHub determines how long the server logs are kept; details are in GitHub’s privacy statement. The legal basis is Art. 6(1)(f) GDPR (legitimate interest in secure and stable operation). The website uses no cookies, no analytics or tracking services, and loads no fonts or scripts from third parties.</p>
 
-    <h2>6. Contact by email</h2>
+    <h2>7. Contact by email</h2>
     <p>If you write to me, I process your email address and the content of your message in order to reply (Art. 6(1)(b) or (f) GDPR). The data is deleted once your request is dealt with, unless retention duties apply.</p>
 
-    <h2>7. Your rights</h2>
+    <h2>8. Your rights</h2>
     <p>You have the right of access (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and objection (Art. 21). Contact the email address above. You may also lodge a complaint with a data protection supervisory authority; in Bavaria this is the Bayerisches Landesamt für Datenschutzaufsicht, Promenade 18, 91522 Ansbach, Germany.</p>
 
-    <h2>8. Changes</h2>
-    <p>If the app later gains features that transmit data (for example online multiplayer or purchases), this policy will be updated beforehand. The current version is always published here.</p>
+    <h2>9. Changes</h2>
+    <p>If the app later gains further features that transmit data (for example purchases or a chat), this policy will be updated beforehand. The current version is always published here.</p>
   </Base>
 )}

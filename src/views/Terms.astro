@@ -1,0 +1,86 @@
+---
+import Base from '../layouts/Base.astro';
+import { paths, type Lang } from '../i18n';
+
+const { lang } = Astro.props as { lang: Lang };
+---
+
+{lang === 'de' ? (
+  <Base lang="de" page="terms" title="Nutzungsbedingungen – Rummy" description="Nutzungsbedingungen für den Online-Modus der Android-App Rummy.">
+    <h1>Nutzungsbedingungen für den Online-Modus</h1>
+    <p class="meta">Stand: 26. Oktober 2026. Diese Bedingungen gelten für den Online-Modus der Android-App <strong>Rummy</strong>. Die Spielarten ohne Netzwerk brauchen keine Zustimmung.</p>
+
+    <h2>1. Anbieter</h2>
+    <p>Robert Peringer, Ittlinger Hauptstraße 17, 94315 Straubing, Deutschland, E-Mail: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a>. Weitere Angaben stehen im <a href={paths.de.legal}>Impressum</a>.</p>
+
+    <h2>2. Leistung</h2>
+    <p>Der Online-Modus ermöglicht Partien mit anderen Personen auf verschiedenen Geräten. Er ist kostenlos. Ich bemühe mich um einen stabilen Betrieb, kann aber keine ununterbrochene Verfügbarkeit zusagen; Wartung, Störungen und Änderungen können den Dienst zeitweise unterbrechen. Ich darf den Dienst ändern oder einstellen und werde das, wenn möglich, vorher in der App oder auf dieser Website ankündigen.</p>
+
+    <h2>3. Zugang und Konto</h2>
+    <ul>
+      <li>Der Online-Modus richtet sich an Personen ab 18 Jahren.</li>
+      <li>Das Konto ist anonym und entsteht automatisch. Konto-Kennung und geheimer Schlüssel liegen nur auf deinem Gerät. Gehen sie verloren (zum Beispiel durch Löschen der App-Daten), kann das Konto nicht wiederhergestellt werden.</li>
+      <li>Der Spielername wird zufällig vergeben. Du darfst ihn Mitspielenden mitteilen, damit sie dich einladen können.</li>
+    </ul>
+
+    <h2>4. Fairer Umgang</h2>
+    <p>Bitte nutze den Dienst nur so, wie er gedacht ist. Nicht erlaubt sind insbesondere:</p>
+    <ul>
+      <li>automatisierte Zugriffe, Manipulation der App oder des Dienstes und der Versuch, Ablagen oder den Vorrat anderer einzusehen,</li>
+      <li>absichtliches Verzögern von Partien, das Anlegen vieler Konten zum Umgehen von Grenzen,</li>
+      <li>Handlungen, die den Dienst überlasten oder andere beeinträchtigen.</li>
+    </ul>
+    <p>Bei Verstößen darf ich Konten sperren oder löschen und Partien beenden.</p>
+
+    <h2>5. Keine Einsätze, keine Preise</h2>
+    <p>Im Online-Modus wird nicht um Geld oder Wertgegenstände gespielt, und es gibt keine Gewinne.</p>
+
+    <h2>6. Haftung</h2>
+    <p>Ich hafte unbeschränkt bei Vorsatz und grober Fahrlässigkeit, bei Verletzung von Leben, Körper oder Gesundheit und nach dem Produkthaftungsgesetz. Bei leicht fahrlässiger Verletzung wesentlicher Vertragspflichten ist die Haftung auf den vorhersehbaren, typischen Schaden begrenzt; im Übrigen ist die Haftung bei leichter Fahrlässigkeit ausgeschlossen. Für den Verlust von Spielständen laufender oder beendeter Online-Partien übernehme ich keine Gewähr.</p>
+
+    <h2>7. Änderungen der Bedingungen, anwendbares Recht</h2>
+    <p>Ich kann diese Bedingungen mit Wirkung für die Zukunft ändern, wenn das aus sachlichen Gründen nötig ist; die jeweils gültige Fassung steht hier. Es gilt deutsches Recht. Zwingende Verbraucherschutzvorschriften des Staates, in dem du lebst, bleiben unberührt.</p>
+
+    <h2>8. Datenschutz</h2>
+    <p>Wie Daten im Online-Modus verarbeitet werden, steht in der <a href={paths.de.privacy}>Datenschutzerklärung</a>. Ein Konto löschst du in der App oder <a href={paths.de.deletion}>über diese Seite</a>.</p>
+  </Base>
+) : (
+  <Base lang="en" page="terms" title="Terms of use – Rummy" description="Terms of use for the online mode of the Android app Rummy.">
+    <h1>Terms of use for the online mode</h1>
+    <p class="meta">Last updated: 26 October 2026. These terms apply to the online mode of the Android app <strong>Rummy</strong>. The modes without a network need no agreement.</p>
+
+    <h2>1. Provider</h2>
+    <p>Robert Peringer, Ittlinger Hauptstraße 17, 94315 Straubing, Germany, email: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a>. Further details are in the <a href={paths.en.legal}>legal notice</a>.</p>
+
+    <h2>2. Service</h2>
+    <p>The online mode lets you play with other people on different devices. It is free of charge. I aim for stable operation but cannot promise uninterrupted availability; maintenance, faults and changes can interrupt the service from time to time. I may change or discontinue the service and will announce this in the app or on this website beforehand where possible.</p>
+
+    <h2>3. Access and account</h2>
+    <ul>
+      <li>The online mode is intended for people aged 18 and over.</li>
+      <li>The account is anonymous and is created automatically. The account ID and secret key are stored only on your device. If they are lost (for example by clearing the app data), the account cannot be restored.</li>
+      <li>The player name is assigned at random. You may tell it to other players so that they can invite you.</li>
+    </ul>
+
+    <h2>4. Fair use</h2>
+    <p>Please use the service only as intended. In particular, the following are not allowed:</p>
+    <ul>
+      <li>automated access, tampering with the app or the service, and attempts to see other players’ racks or the pool,</li>
+      <li>deliberately delaying games, and creating many accounts to get around limits,</li>
+      <li>actions that overload the service or affect others.</li>
+    </ul>
+    <p>In case of violations I may block or delete accounts and end games.</p>
+
+    <h2>5. No stakes, no prizes</h2>
+    <p>The online mode is not played for money or valuables, and there are no winnings.</p>
+
+    <h2>6. Liability</h2>
+    <p>I am liable without limit for intent and gross negligence, for injury to life, body or health, and under the Product Liability Act. For slightly negligent breach of essential contractual obligations, liability is limited to the foreseeable, typical damage; otherwise liability for slight negligence is excluded. I give no guarantee for the loss of game states of running or finished online games.</p>
+
+    <h2>7. Changes to the terms, applicable law</h2>
+    <p>I may change these terms with effect for the future where this is necessary for factual reasons; the current version is published here. German law applies. Mandatory consumer protection provisions of the country where you live remain unaffected.</p>
+
+    <h2>8. Privacy</h2>
+    <p>How data is processed in the online mode is described in the <a href={paths.en.privacy}>privacy policy</a>. You can delete an account in the app or <a href={paths.en.deletion}>on this page</a>.</p>
+  </Base>
+)}
