@@ -1,0 +1,161 @@
+---
+import { paths, ui, type Lang, type PageKey } from '../i18n';
+
+interface Props {
+  lang: Lang;
+  page: PageKey;
+  title: string;
+  description: string;
+}
+
+const { lang, page, title, description } = Astro.props;
+const t = ui[lang];
+const other: Lang = lang === 'de' ? 'en' : 'de';
+const nav: { key: PageKey; label: string }[] = [
+  { key: 'home', label: t.navHome },
+  { key: 'rules', label: t.navRules },
+  { key: 'legal', label: t.navLegal },
+  { key: 'privacy', label: t.navPrivacy },
+];
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" hreflang={other} href={paths[other][page]} />
+    <link rel="alternate" hreflang={lang} href={paths[lang][page]} />
+  </head>
+  <body>
+    <a class="skip" href="#inhalt">{t.skip}</a>
+    <header class="band">
+      <div class="wrap bar">
+        <a class="brand" href={paths[lang].home} aria-label={`${t.siteName} – ${t.tagline}`}>
+          <span class="tiles" aria-hidden="true">
+            <span class="tile c-black">1</span><span class="tile c-blue">2</span><span class="tile c-red">3</span><span class="tile c-orange">★</span>
+          </span>
+          <span class="brandtext">{t.siteName}<small>{t.tagline}</small></span>
+        </a>
+        <nav aria-label="Navigation">
+          <ul>
+            {nav.map((n) => (
+              <li><a href={paths[lang][n.key]} aria-current={n.key === page ? 'page' : undefined}>{n.label}</a></li>
+            ))}
+            <li><a class="lang" href={paths[other][page]} hreflang={other} lang={other}>{t.otherLang}</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="inhalt" class="wrap">
+      <slot />
+    </main>
+
+    <footer class="band foot">
+      <div class="wrap">
+        <p>{t.footer}</p>
+        <p>
+          <a href={paths[lang].legal}>{t.navLegal}</a> · <a href={paths[lang].privacy}>{t.navPrivacy}</a>
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --felt: #1b5e20;
+    --felt-deep: #134617;
+    --paper: #fbf7ea;
+    --ink: #1d2a21;
+    --muted: #546157;
+    --line: #d9d3bd;
+    --link: #0b5cad;
+    --tile: #fffaf0;
+    --c-black: #212121;
+    --c-blue: #1565c0;
+    --c-red: #d32f2f;
+    --c-orange: #e08300;
+    --focus: #ffb300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --felt: #0f3d13;
+      --felt-deep: #0a2a0d;
+      --paper: #151c17;
+      --ink: #e8ecdf;
+      --muted: #a3ae9f;
+      --line: #2b362d;
+      --link: #8ec5ff;
+      --tile: #fffaf0;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 1.0625rem/1.65 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  .wrap { width: min(100% - 32px, 46rem); margin-inline: auto; }
+  a { color: var(--link); text-underline-offset: 0.15em; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+  .skip { position: absolute; left: -999px; top: 0; background: #fff; color: #000; padding: 8px 12px; z-index: 10; }
+  .skip:focus { left: 8px; top: 8px; }
+
+  .band { background: var(--felt); color: #f2f6ec; }
+  .band a { color: #f2f6ec; }
+  .bar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; padding-block: 14px; }
+  .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+  .brandtext { display: grid; font-size: 1.35rem; font-weight: 700; line-height: 1.1; letter-spacing: 0.01em; }
+  .brandtext small { font-size: 0.8rem; font-weight: 400; opacity: 0.85; letter-spacing: 0.04em; }
+  .tiles { display: inline-flex; gap: 4px; }
+  .tile {
+    display: grid; place-items: center; width: 26px; height: 34px;
+    background: var(--tile); border-radius: 5px; font-weight: 800; font-size: 1rem;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  }
+  .c-black { color: var(--c-black); } .c-blue { color: var(--c-blue); }
+  .c-red { color: var(--c-red); } .c-orange { color: var(--c-orange); }
+
+  nav ul { display: flex; flex-wrap: wrap; gap: 4px 18px; list-style: none; margin: 0; padding: 0; }
+  nav a { text-decoration: none; padding: 6px 2px; border-bottom: 2px solid transparent; }
+  nav a:hover { border-bottom-color: rgba(255, 255, 255, 0.6); }
+  nav a[aria-current='page'] { border-bottom-color: #ffd54f; font-weight: 600; }
+  nav a.lang { opacity: 0.9; }
+
+  main { padding-block: 40px 56px; min-height: 60vh; }
+  h1 { font-size: clamp(1.8rem, 5vw, 2.5rem); line-height: 1.15; margin: 0 0 8px; text-wrap: balance; }
+  h2 { font-size: 1.35rem; margin: 2.2rem 0 0.4rem; text-wrap: balance; }
+  h3 { font-size: 1.1rem; margin: 1.5rem 0 0.2rem; }
+  p, ul, ol { margin: 0.6rem 0; }
+  .lead { font-size: 1.2rem; color: var(--muted); margin-bottom: 1.6rem; max-width: 40rem; }
+  .meta { color: var(--muted); font-size: 0.95rem; }
+  .rule p { white-space: pre-line; }
+  .rule + .rule { border-top: 1px solid var(--line); }
+  address { font-style: normal; }
+
+  .card {
+    background: color-mix(in srgb, var(--paper) 88%, var(--felt) 12%);
+    border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin: 20px 0;
+  }
+  .facts { padding-left: 1.2rem; }
+  .facts li { margin: 0.35rem 0; }
+  .btn {
+    display: inline-block; background: var(--felt); color: #fff; padding: 10px 18px;
+    border-radius: 999px; text-decoration: none; font-weight: 600;
+  }
+  .btn:hover { background: var(--felt-deep); }
+
+  .foot { padding-block: 22px; font-size: 0.95rem; }
+  .foot p { margin: 4px 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>

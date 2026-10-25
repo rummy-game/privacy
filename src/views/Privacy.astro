@@ -1,0 +1,92 @@
+---
+import Base from '../layouts/Base.astro';
+import type { Lang } from '../i18n';
+
+const { lang } = Astro.props as { lang: Lang };
+---
+
+{lang === 'de' ? (
+  <Base lang="de" page="privacy" title="Datenschutzerklärung – Rummy" description="Datenschutzerklärung für die Android-App Rummy und diese Website.">
+    <h1>Datenschutzerklärung</h1>
+    <p class="meta">Stand: 25. Oktober 2026. Diese Erklärung gilt für die Android-App <strong>Rummy</strong> (Paket-ID: <code>rp.rummy</code>) und diese Website.</p>
+
+    <h2>1. Verantwortlicher</h2>
+    <address>
+      Robert Peringer<br />
+      Ittlinger Hauptstraße 17<br />
+      94315 Straubing<br />
+      Deutschland
+    </address>
+    <p>E-Mail: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a></p>
+
+    <h2>2. Überblick</h2>
+    <p>Rummy ist ein Plättchenspiel, das vollständig auf deinem Gerät läuft. Es gibt kein Nutzerkonto, keine Registrierung und keinen eigenen Server. Die App fordert keine Berechtigungen an und hat keine Berechtigung zur Internetnutzung; sie kann von sich aus keine Daten übertragen. Werbe-, Analyse- oder Tracking-Dienste sind nicht eingebunden.</p>
+
+    <h2>3. Daten in der App</h2>
+    <p>Die App speichert folgende Angaben ausschließlich lokal im app-eigenen Speicher deines Geräts:</p>
+    <ul>
+      <li>deine Einstellungen (Sprache, Regeln, Tischfarbe, Töne, Lautstärke, Farbenblind-Symbole),</li>
+      <li>optional eingegebene Spielernamen,</li>
+      <li>den Spielstand einer laufenden Partie, damit du sie fortsetzen kannst,</li>
+      <li>eine Statistik über deine Partien gegen den Computer.</li>
+    </ul>
+    <p>Diese Daten werden nicht an den Anbieter oder an Dritte übermittelt. Du kannst sie jederzeit löschen, indem du die App-Daten in den Android-Einstellungen löschst oder die App deinstallierst. Die automatische Android-Sicherung ist für die App abgeschaltet; die Daten werden also nicht in eine Sicherung deines Google-Kontos einbezogen.</p>
+
+    <h2>4. Installation über Google Play</h2>
+    <p>Beim Herunterladen der App über Google Play verarbeitet Google Daten nach eigener Verantwortung, zum Beispiel für Kontoverwaltung, Download und Zahlungsabwicklung. Darauf hat der Anbieter keinen Einfluss. Näheres steht in der Datenschutzerklärung von Google.</p>
+
+    <h2>5. Diese Website</h2>
+    <p>Beim Aufruf dieser Website verarbeitet der Hosting-Anbieter technisch notwendige Daten (IP-Adresse, Datum und Uhrzeit, aufgerufene Seite, Browsertyp) in Server-Protokollen, um die Seite auszuliefern und den Betrieb abzusichern. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einem sicheren und stabilen Betrieb). Die Website verwendet keine Cookies, keine Analyse- und keine Tracking-Dienste und lädt keine Schriftarten oder Skripte von Dritten.</p>
+
+    <h2>6. Kontakt per E-Mail</h2>
+    <p>Wenn du mir schreibst, verarbeite ich deine E-Mail-Adresse und den Inhalt deiner Nachricht, um sie zu beantworten (Art. 6 Abs. 1 lit. b oder f DSGVO). Die Daten werden gelöscht, sobald die Anfrage erledigt ist und keine Aufbewahrungspflichten entgegenstehen.</p>
+
+    <h2>7. Deine Rechte</h2>
+    <p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Wende dich dafür an die oben genannte E-Mail-Adresse. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren, in Bayern beim Bayerischen Landesamt für Datenschutzaufsicht, Promenade 18, 91522 Ansbach.</p>
+
+    <h2>8. Änderungen</h2>
+    <p>Wenn die App künftig Funktionen bekommt, die Daten übertragen (zum Beispiel Online-Mehrspieler oder Käufe), wird diese Erklärung vorher angepasst. Die jeweils gültige Fassung steht hier.</p>
+  </Base>
+) : (
+  <Base lang="en" page="privacy" title="Privacy policy – Rummy" description="Privacy policy for the Android app Rummy and this website.">
+    <h1>Privacy policy</h1>
+    <p class="meta">Last updated: 25 October 2026. This policy applies to the Android app <strong>Rummy</strong> (package ID: <code>rp.rummy</code>) and this website.</p>
+
+    <h2>1. Controller</h2>
+    <address>
+      Robert Peringer<br />
+      Ittlinger Hauptstraße 17<br />
+      94315 Straubing<br />
+      Germany
+    </address>
+    <p>Email: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a></p>
+
+    <h2>2. Overview</h2>
+    <p>Rummy is a tile game that runs entirely on your device. There is no user account, no registration and no server of its own. The app requests no permissions and has no permission to use the internet, so it cannot transmit data on its own. No advertising, analytics or tracking services are included.</p>
+
+    <h2>3. Data in the app</h2>
+    <p>The app stores the following information only locally, in the app’s private storage on your device:</p>
+    <ul>
+      <li>your settings (language, rules, table colour, sounds, volume, colour-blind symbols),</li>
+      <li>player names, if you enter any,</li>
+      <li>the state of a game in progress, so you can resume it,</li>
+      <li>statistics about your games against the computer.</li>
+    </ul>
+    <p>This data is not sent to the provider or to third parties. You can delete it at any time by clearing the app’s data in Android settings or by uninstalling the app. Android’s automatic backup is switched off for the app, so the data is not included in a backup of your Google account.</p>
+
+    <h2>4. Installation through Google Play</h2>
+    <p>When you download the app from Google Play, Google processes data under its own responsibility, for example for account management, download and payment. The provider has no influence on this. See Google’s privacy policy for details.</p>
+
+    <h2>5. This website</h2>
+    <p>When you visit this website, the hosting provider processes technically necessary data (IP address, date and time, requested page, browser type) in server logs to deliver the site and keep it secure. The legal basis is Art. 6(1)(f) GDPR (legitimate interest in secure and stable operation). The website uses no cookies, no analytics or tracking services, and loads no fonts or scripts from third parties.</p>
+
+    <h2>6. Contact by email</h2>
+    <p>If you write to me, I process your email address and the content of your message in order to reply (Art. 6(1)(b) or (f) GDPR). The data is deleted once your request is dealt with, unless retention duties apply.</p>
+
+    <h2>7. Your rights</h2>
+    <p>You have the right of access (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and objection (Art. 21). Contact the email address above. You may also lodge a complaint with a data protection supervisory authority; in Bavaria this is the Bayerisches Landesamt für Datenschutzaufsicht, Promenade 18, 91522 Ansbach, Germany.</p>
+
+    <h2>8. Changes</h2>
+    <p>If the app later gains features that transmit data (for example online multiplayer or purchases), this policy will be updated beforehand. The current version is always published here.</p>
+  </Base>
+)}

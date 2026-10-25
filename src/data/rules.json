@@ -1,0 +1,112 @@
+{
+  "de": {
+    "title": "Spielregeln",
+    "sections": [
+      {
+        "id": "goal",
+        "heading": "Ziel",
+        "body": "Wer zuerst alle Plättchen aus seiner Ablage auf den Tisch gelegt hat, gewinnt die Runde."
+      },
+      {
+        "id": "tiles",
+        "heading": "Die Plättchen",
+        "body": "Es gibt 106 Plättchen: die Zahlen 1 bis 13 in vier Farben (Schwarz, Blau, Rot, Orange), jede Zahl und Farbe zweimal, dazu 2 Joker (★). Ohne Joker (Einstellung im Menü) sind es 104. Zu Beginn bekommt jeder Spieler 14 Plättchen auf seine Ablage (im Menü einstellbar), der Rest bildet den Vorrat.\nMit der Einstellung „Symbole für Farbenblindheit\" trägt jede Farbe zusätzlich ein Zeichen: Schwarz Kreis, Blau Dreieck, Rot Quadrat, Orange Raute."
+      },
+      {
+        "id": "melds",
+        "heading": "Gültige Kombinationen",
+        "body": "• Folge: mindestens 3 aufeinanderfolgende Zahlen in einer Farbe, zum Beispiel Rot 4-5-6. Die 13 und die 1 sind nicht verbunden.\n• Gruppe: 3 oder 4 gleiche Zahlen in verschiedenen Farben, zum Beispiel die 7 in Schwarz, Blau und Rot.\n• Joker (★): ersetzt ein beliebiges Plättchen und zählt so viel wie das ersetzte Plättchen. Ist das mehrdeutig, zählt der höhere Wert."
+      },
+      {
+        "id": "turn",
+        "heading": "Dein Zug",
+        "body": "Du legst entweder mindestens ein Plättchen aus deiner Ablage auf den Tisch oder ziehst genau ein Plättchen vom Vorrat. Danach ist der nächste Spieler dran. Das Plättchen, das du gezogen hast, ist in deinem nächsten Zug markiert. Ist der Vorrat leer und kannst du nichts legen, setzt du aus."
+      },
+      {
+        "id": "first",
+        "heading": "Das erste Auslegen",
+        "body": "Beim ersten Mal musst du neue Kombinationen legen, die zusammen mindestens 30 Punkte wert sind (die Zahlen addieren, ein Joker zählt seinen Ersatzwert). Dafür darfst du nur Plättchen aus deiner eigenen Ablage nehmen und den Tisch nicht verändern, also auch nichts anlegen. Die App zeigt dir den Fortschritt, zum Beispiel „Erstes Auslegen: 24 von 30 Punkten\". Diese Mindestpunktzahl lässt sich im Menü abschalten."
+      },
+      {
+        "id": "rebuild",
+        "heading": "Den Tisch umbauen",
+        "body": "Hast du schon ausgelegt, darfst du die Kombinationen auf dem Tisch beliebig umbauen: anlegen, teilen, zusammenfügen und Plättchen zwischen Kombinationen verschieben. Am Ende deines Zuges muss jede Kombination gültig sein (grüner Rand, ungültige sind rot). Plättchen vom Tisch dürfen nicht zurück in deine Ablage. Das gilt auch für Joker: Du kannst einen Joker durch das passende Plättchen ersetzen, musst ihn dann aber im selben Zug in einer anderen Kombination verwenden."
+      },
+      {
+        "id": "end",
+        "heading": "Spielende und Wertung",
+        "body": "Die Runde endet, sobald ein Spieler keine Plättchen mehr hat. Ist der Vorrat leer und kann niemand mehr etwas legen (alle setzen nacheinander aus), gewinnt, wer die wenigsten Restpunkte auf der Ablage hat; bei Gleichstand gibt es keinen Sieger.\nWertung: Der Gewinner bekommt die Summe der Restpunkte aller anderen, jeder Verlierer verliert seine eigenen. Ein Plättchen zählt seine Zahl, ein Joker zählt 30."
+      },
+      {
+        "id": "app",
+        "heading": "Bedienung",
+        "body": "• Plättchen antippen wählt es aus, nochmaliges Antippen hebt die Auswahl auf. „Neue Kombination\" legt die Auswahl als neue Kombination auf den Tisch, mit dem „+\" an einer Kombination legst du sie dort an. Ein Tipp auf freie Tischfläche legt sie ebenfalls als neue Kombination ab.\n• Plättchen lassen sich auch ziehen: auf eine Kombination, auf den Tisch (neue Kombination) oder zurück in die Ablage. Gehört das Plättchen zur Auswahl, wird die ganze Auswahl gezogen. Ist die Ablage so voll, dass sie scrollt, beginnt das Ziehen erst nach kurzem Drücken.\n• „Rückgängig\" nimmt den letzten Schritt in deinem Zug zurück und lässt sich mehrfach drücken, bis du wieder am Zugbeginn bist.\n• „Zug beenden\" prüft deinen Zug. „Ziehen\" nimmst du, wenn du nichts legst.\n• „Nach Farbe\" und „Nach Zahl\" sortieren deine Ablage."
+      },
+      {
+        "id": "multi",
+        "heading": "Mehrere Spieler an einem Gerät",
+        "body": "Spielen mehrere Menschen, wird deine Ablage nach jedem Zug sofort verdeckt. Gib das Gerät weiter, der nächste Spieler tippt auf den Bildschirm und sieht erst dann seine Plättchen. Auch beim App-Wechsel oder bei gesperrtem Bildschirm wird die Ablage wieder verdeckt."
+      },
+      {
+        "id": "ai",
+        "heading": "Computergegner",
+        "body": "Anfänger legt nur einfache Kombinationen aus der eigenen Ablage. Mittel hängt zusätzlich einzelne Plättchen an. Schwer baut den Tisch um, tauscht Joker und spart sie auf. Experte rechnet länger und wirft im Endspiel auch Joker ab. Der Computer sieht deine Plättchen nie."
+      }
+    ]
+  },
+  "en": {
+    "title": "Rules",
+    "sections": [
+      {
+        "id": "goal",
+        "heading": "Goal",
+        "body": "The first player to get rid of all the tiles on their rack by playing them to the table wins the round."
+      },
+      {
+        "id": "tiles",
+        "heading": "The tiles",
+        "body": "There are 106 tiles: the numbers 1 to 13 in four colours (black, blue, red, orange), each number and colour twice, plus 2 jokers (★). Without jokers (setting in the menu) there are 104. At the start every player gets 14 tiles on their rack (adjustable in the menu), the rest form the pool.\nWith the setting “Symbols for colour blindness” each colour also carries a mark: black circle, blue triangle, red square, orange diamond."
+      },
+      {
+        "id": "melds",
+        "heading": "Valid sets",
+        "body": "• Run: at least 3 consecutive numbers in one colour, for example red 4-5-6. The 13 and the 1 are not connected.\n• Group: 3 or 4 equal numbers in different colours, for example the 7 in black, blue and red.\n• Joker (★): replaces any tile and counts as much as the tile it replaces. If that is ambiguous, the higher value counts."
+      },
+      {
+        "id": "turn",
+        "heading": "Your turn",
+        "body": "You either play at least one tile from your rack to the table or draw exactly one tile from the pool. Then it is the next player’s turn. The tile you drew is highlighted in your next turn. If the pool is empty and you cannot play, you pass."
+      },
+      {
+        "id": "first",
+        "heading": "The first meld",
+        "body": "The first time, you must play new sets worth at least 30 points together (add up the numbers, a joker counts as the value it replaces). For this you may only use tiles from your own rack and you may not change the table, so you cannot add to existing sets. The app shows your progress, for example “First meld: 24 of 30 points”. This minimum can be switched off in the menu."
+      },
+      {
+        "id": "rebuild",
+        "heading": "Rebuilding the table",
+        "body": "Once you have melded you may rearrange the sets on the table as you like: add tiles, split or join sets and move tiles between sets. At the end of your turn every set must be valid (green border, invalid ones are red). Tiles from the table may not go back to your rack. This includes jokers: you may replace a joker with the matching tile, but you must then use it in another set in the same turn."
+      },
+      {
+        "id": "end",
+        "heading": "End of the game and scoring",
+        "body": "The round ends as soon as a player has no tiles left. If the pool is empty and nobody can play any more (everyone passes in turn), the player with the fewest points left on their rack wins; in a tie there is no winner.\nScoring: the winner receives the sum of everyone else’s remaining points, each loser loses their own. A tile counts its number, a joker counts 30."
+      },
+      {
+        "id": "app",
+        "heading": "Controls",
+        "body": "• Tap a tile to select it, tap again to deselect. “New set” puts the selection on the table as a new set, the “+” on a set adds the selection there. A tap on empty table space also makes a new set.\n• You can also drag tiles: onto a set, onto the table (new set) or back to your rack. If the tile is part of the selection, the whole selection is dragged. If your rack is so full that it scrolls, dragging starts after a short press.\n• “Undo” takes back the last step of your turn and can be pressed repeatedly until you are back at the start of the turn.\n• “End turn” checks your move. Use “Draw” if you play nothing.\n• “By colour” and “By number” sort your rack."
+      },
+      {
+        "id": "multi",
+        "heading": "Several players on one device",
+        "body": "When several humans play, your rack is hidden right after every turn. Pass the device on, the next player taps the screen and only then sees their tiles. The rack is also hidden again when you switch apps or lock the screen."
+      },
+      {
+        "id": "ai",
+        "heading": "Computer opponents",
+        "body": "Beginner only plays simple sets from its own rack. Medium also adds single tiles to existing sets. Hard rebuilds the table, swaps jokers and saves them. Expert thinks longer and also gets rid of jokers in the endgame. The computer never sees your tiles."
+      }
+    ]
+  }
+}

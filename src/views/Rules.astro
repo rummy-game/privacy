@@ -1,0 +1,27 @@
+---
+import Base from '../layouts/Base.astro';
+import rules from '../data/rules.json';
+import type { Lang } from '../i18n';
+
+const { lang } = Astro.props as { lang: Lang };
+const r = rules[lang];
+const description = {
+  de: 'Die Spielregeln von Rummy: Plättchen, gültige Kombinationen, erstes Auslegen, Tisch umbauen und Wertung.',
+  en: 'The rules of Rummy Tiles: tiles, valid sets, the first meld, rearranging the table and scoring.',
+}[lang];
+const note = {
+  de: 'Die Zahlen gelten für die Standardeinstellungen. Startplättchen, Mindestpunkte und Joker lassen sich in der App ändern.',
+  en: 'The numbers apply to the default settings. Starting tiles, minimum points and jokers can be changed in the app.',
+}[lang];
+---
+
+<Base lang={lang} page="rules" title={`${r.title} – Rummy`} description={description}>
+  <h1>{r.title}</h1>
+  <p class="lead">{note}</p>
+  {r.sections.map((s) => (
+    <section class="rule" id={s.id}>
+      <h2>{s.heading}</h2>
+      <p>{s.body}</p>
+    </section>
+  ))}
+</Base>

@@ -1,0 +1,53 @@
+---
+import Base from '../layouts/Base.astro';
+import type { Lang } from '../i18n';
+
+const { lang } = Astro.props as { lang: Lang };
+---
+
+{lang === 'de' ? (
+  <Base lang="de" page="legal" title="Impressum – Rummy" description="Impressum für die Android-App Rummy und diese Website.">
+    <h1>Impressum</h1>
+    <p class="meta">Angaben gemäß § 5 DDG (Digitale-Dienste-Gesetz) für die Android-App <strong>Rummy</strong> und diese Website.</p>
+
+    <h2>Diensteanbieter</h2>
+    <address>
+      Robert Peringer<br />
+      Ittlinger Hauptstraße 17<br />
+      94315 Straubing<br />
+      Deutschland
+    </address>
+
+    <h2>Kontakt</h2>
+    <p>E-Mail: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a></p>
+    <p>Anfragen werden über die angegebene E-Mail-Adresse beantwortet. Eine schnelle elektronische Kontaktaufnahme und unmittelbare Kommunikation im Sinne des § 5 Abs. 1 Nr. 2 DDG ist darüber möglich.</p>
+
+    <h2>Verantwortlich für den Inhalt</h2>
+    <p>Robert Peringer, Anschrift wie oben.</p>
+
+    <h2>Verbraucherstreitbeilegung</h2>
+    <p>Ich bin nicht verpflichtet und nicht bereit, an einem Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
+  </Base>
+) : (
+  <Base lang="en" page="legal" title="Legal notice – Rummy" description="Legal notice for the Android app Rummy and this website.">
+    <h1>Legal notice</h1>
+    <p class="meta">Information pursuant to Section 5 of the German Digital Services Act (DDG) for the Android app <strong>Rummy</strong> and this website.</p>
+
+    <h2>Service provider</h2>
+    <address>
+      Robert Peringer<br />
+      Ittlinger Hauptstraße 17<br />
+      94315 Straubing<br />
+      Germany
+    </address>
+
+    <h2>Contact</h2>
+    <p>Email: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a></p>
+
+    <h2>Responsible for the content</h2>
+    <p>Robert Peringer, address as above.</p>
+
+    <h2>Consumer dispute resolution</h2>
+    <p>We are neither obliged nor willing to participate in dispute resolution proceedings before a consumer arbitration board.</p>
+  </Base>
+)}

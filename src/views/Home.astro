@@ -1,0 +1,65 @@
+---
+import Base from '../layouts/Base.astro';
+import { paths, type Lang } from '../i18n';
+
+const { lang } = Astro.props as { lang: Lang };
+
+const text = {
+  de: {
+    title: 'Rummy – Rommé mit Plättchen',
+    description: 'Rummy ist Plättchen-Rommé für Android: allein gegen den Computer oder mit bis zu vier Personen an einem Gerät. Ohne Konto, ohne Netzwerk.',
+    h1: 'Rummy – Rommé mit Plättchen',
+    lead: 'Plättchen-Rommé für Android: allein gegen den Computer oder mit bis zu vier Personen an einem Gerät.',
+    factsH: 'Das kann die App',
+    facts: [
+      'Vier Stufen für den Computergegner: Anfänger, Mittel, Schwer und Experte.',
+      'Zwei bis vier Spieler an einem Gerät. Nach jedem Zug wird die Ablage verdeckt, damit niemand die Plättchen der anderen sieht.',
+      'Plättchen antippen oder ziehen, jeden Schritt im Zug rückgängig machen.',
+      'Regeln einstellbar: Joker, Anzahl der Startplättchen, Mindestpunkte beim ersten Auslegen, Startspieler.',
+      'Symbole für Farbenblindheit, Tischfarben, einzeln schaltbare Töne, Deutsch und Englisch.',
+      'Spielstand wird gespeichert, die Statistik bleibt auf dem Gerät.',
+    ],
+    privH: 'Ohne Konto und ohne Netzwerk',
+    priv: 'Die App braucht kein Nutzerkonto, keine Berechtigungen und keine Internetverbindung. Was du einstellst und spielst, bleibt auf deinem Gerät.',
+    state: 'Die App ist in Vorbereitung und noch nicht bei Google Play erschienen.',
+    rules: 'Spielregeln lesen',
+  },
+  en: {
+    title: 'Rummy Tiles',
+    description: 'Rummy Tiles is tile rummy for Android: play alone against the computer or with up to four people on one device. No account, no network.',
+    h1: 'Rummy Tiles',
+    lead: 'Tile rummy for Android: play alone against the computer or with up to four people on one device.',
+    factsH: 'What the app does',
+    facts: [
+      'Four computer levels: Beginner, Medium, Hard and Expert.',
+      'Two to four players on one device. The rack is hidden after every turn so nobody sees the others’ tiles.',
+      'Tap or drag tiles, and undo every step of your turn.',
+      'Adjustable rules: jokers, number of starting tiles, minimum points for the first meld, starting player.',
+      'Colour-blind symbols, table colours, sounds you can switch on and off one by one, German and English.',
+      'Your game is saved, and statistics stay on the device.',
+    ],
+    privH: 'No account and no network',
+    priv: 'The app needs no user account, no permissions and no internet connection. What you set up and play stays on your device.',
+    state: 'The app is in preparation and is not yet available on Google Play.',
+    rules: 'Read the rules',
+  },
+}[lang];
+---
+
+<Base lang={lang} page="home" title={text.title} description={text.description}>
+  <h1>{text.h1}</h1>
+  <p class="lead">{text.lead}</p>
+  <p class="meta">{text.state}</p>
+
+  <h2>{text.factsH}</h2>
+  <ul class="facts">
+    {text.facts.map((f) => <li>{f}</li>)}
+  </ul>
+
+  <div class="card">
+    <h2 style="margin-top: 0">{text.privH}</h2>
+    <p>{text.priv}</p>
+  </div>
+
+  <p><a class="btn" href={paths[lang].rules}>{text.rules}</a></p>
+</Base>
