@@ -88,7 +88,7 @@ export interface AuthVerify {
   purpose: AuthPurpose;
 }
 
-export const MIN_LIMIT_SECONDS = 60;
+export const MIN_LIMIT_SECONDS = 30;
 export const MAX_LIMIT_SECONDS = 7 * 24 * 3600;
 export const DEFAULT_LIMIT_SECONDS = 24 * 3600;
 
