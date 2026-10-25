@@ -22,6 +22,11 @@ export const MAX_ACTIVE_GAMES = 10;
 export const MAX_ACCOUNTS = 100_000;
 export const FINISHED_KEEP_MS = 30 * 24 * 3600 * 1000;
 export const LOBBY_KEEP_MS = 7 * 24 * 3600 * 1000;
+/** Laufende Partien, deren Zugfrist seit so langer Zeit abgelaufen ist, ohne dass jemand nachgesehen hat. */
+export const IDLE_GAME_KEEP_MS = 30 * 24 * 3600 * 1000;
+/** Konten ohne Nutzung werden nach dieser Zeit gelöscht. */
+export const INACTIVE_ACCOUNT_MS = 365 * 24 * 3600 * 1000;
+const TOUCH_INTERVAL_MS = 24 * 3600 * 1000;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 const RETRIES = 6;
@@ -65,7 +70,7 @@ export class Service {
     const secret = this.token(16);
     const secretHash = await sha256(secret);
     for (let i = 0; i < 20; i++) {
-      const account = { id: this.token(8), secretHash, name: randomName(this.rng) };
+      const account = { id: this.token(8), secretHash, name: randomName(this.rng), lastSeen: this.clock() };
       if (await this.store.createAccount(account)) return { id: account.id, secret, name: account.name };
     }
     return null;
@@ -74,7 +79,11 @@ export class Service {
   async authenticate(id: string, secret: string): Promise<boolean> {
     if (!id || !secret || id.length > 64 || secret.length > 128) return false;
     const account = await this.store.getAccount(id);
-    return account !== null && sameText(account.secretHash, await sha256(secret));
+    if (account === null || !sameText(account.secretHash, await sha256(secret))) return false;
+    // Höchstens einmal am Tag schreiben: genügt, um inaktive Konten zu erkennen.
+    const now = this.clock();
+    if (now - account.lastSeen > TOUCH_INTERVAL_MS) await this.store.touchAccount(id, now);
+    return true;
   }
 
   async rerollName(accountId: string): Promise<string | null> {
@@ -240,9 +249,11 @@ export class Service {
     });
   }
 
-  /** Alte beendete und nie gestartete Partien löschen; läuft täglich über den Wartungsaufruf. */
+  /** Täglicher Wartungsaufruf: alte Partien löschen und Konten entfernen, die lange nicht genutzt wurden. */
   async maintenance(): Promise<void> {
-    await this.store.purge(this.clock(), FINISHED_KEEP_MS, LOBBY_KEEP_MS);
+    const now = this.clock();
+    await this.store.purge(now, FINISHED_KEEP_MS, LOBBY_KEEP_MS, IDLE_GAME_KEEP_MS);
+    for (const id of await this.store.staleAccounts(now - INACTIVE_ACCOUNT_MS)) await this.deleteAccount(id);
   }
 
   // --- intern ---

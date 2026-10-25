@@ -30,6 +30,8 @@ export interface Account {
   id: string;
   secretHash: string;
   name: string;
+  /** Zeitpunkt der letzten Nutzung (Epoch-Millisekunden), höchstens auf einen Tag genau. */
+  lastSeen: number;
 }
 
 export interface Stored {
@@ -46,6 +48,9 @@ export interface Store {
   createAccount(a: Account): Promise<boolean>;
   getAccount(id: string): Promise<Account | null>;
   renameAccount(id: string, name: string): Promise<boolean>;
+  touchAccount(id: string, now: number): Promise<void>;
+  /** Konten, die seit `cutoff` nicht genutzt wurden (höchstens 100). */
+  staleAccounts(cutoff: number): Promise<string[]>;
   deleteAccount(id: string): Promise<void>;
   countAccounts(): Promise<number>;
 
@@ -56,8 +61,8 @@ export interface Store {
   findLobbyByCode(code: string): Promise<Stored | null>;
   codeInUse(code: string): Promise<boolean>;
   gamesOf(accountId: string): Promise<Stored[]>;
-  /** Alte beendete und nie gestartete Partien löschen. */
-  purge(now: number, finishedKeepMs: number, lobbyKeepMs: number): Promise<void>;
+  /** Alte beendete, nie gestartete und seit langem ruhende Partien löschen. */
+  purge(now: number, finishedKeepMs: number, lobbyKeepMs: number, idleKeepMs: number): Promise<void>;
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -81,6 +86,13 @@ export class MemoryStore implements Store {
     if (!a || [...this.accounts.values()].some((x) => x.name === name)) return false;
     a.name = name;
     return true;
+  }
+  async touchAccount(id: string, now: number) {
+    const a = this.accounts.get(id);
+    if (a) a.lastSeen = now;
+  }
+  async staleAccounts(cutoff: number) {
+    return [...this.accounts.values()].filter((a) => a.lastSeen < cutoff).slice(0, 100).map((a) => a.id);
   }
   async deleteAccount(id: string) {
     this.accounts.delete(id);
@@ -118,10 +130,11 @@ export class MemoryStore implements Store {
       .filter((s) => s.game.slots.some((x) => x.accountId === accountId))
       .map((s) => ({ game: clone(s.game), version: s.version }));
   }
-  async purge(now: number, finishedKeepMs: number, lobbyKeepMs: number) {
+  async purge(now: number, finishedKeepMs: number, lobbyKeepMs: number, idleKeepMs: number) {
     for (const [id, s] of this.games) {
       const g = s.game;
-      if ((g.status === 'FINISHED' && now - g.finishedAt > finishedKeepMs) || (g.status === 'LOBBY' && now - g.createdAt > lobbyKeepMs)) this.games.delete(id);
+      const idle = g.status === 'RUNNING' && g.deadlineAt > 0 && now - g.deadlineAt > idleKeepMs;
+      if ((g.status === 'FINISHED' && now - g.finishedAt > finishedKeepMs) || (g.status === 'LOBBY' && now - g.createdAt > lobbyKeepMs) || idle) this.games.delete(id);
     }
   }
 }
@@ -132,15 +145,21 @@ export class D1Store implements Store {
 
   async createAccount(a: Account) {
     try {
-      await this.db.prepare('INSERT INTO accounts (id, secret_hash, name, created_at) VALUES (?, ?, ?, ?)').bind(a.id, a.secretHash, a.name, Date.now()).run();
+      await this.db
+        .prepare('INSERT INTO accounts (id, secret_hash, name, created_at, last_seen) VALUES (?, ?, ?, ?, ?)')
+        .bind(a.id, a.secretHash, a.name, a.lastSeen, a.lastSeen)
+        .run();
       return true;
     } catch {
       return false; // ID oder Name schon vergeben
     }
   }
   async getAccount(id: string) {
-    const r = await this.db.prepare('SELECT id, secret_hash, name FROM accounts WHERE id = ?').bind(id).first<{ id: string; secret_hash: string; name: string }>();
-    return r ? { id: r.id, secretHash: r.secret_hash, name: r.name } : null;
+    const r = await this.db
+      .prepare('SELECT id, secret_hash, name, last_seen FROM accounts WHERE id = ?')
+      .bind(id)
+      .first<{ id: string; secret_hash: string; name: string; last_seen: number }>();
+    return r ? { id: r.id, secretHash: r.secret_hash, name: r.name, lastSeen: r.last_seen } : null;
   }
   async renameAccount(id: string, name: string) {
     try {
@@ -149,6 +168,13 @@ export class D1Store implements Store {
     } catch {
       return false;
     }
+  }
+  async touchAccount(id: string, now: number) {
+    await this.db.prepare('UPDATE accounts SET last_seen = ? WHERE id = ?').bind(now, id).run();
+  }
+  async staleAccounts(cutoff: number) {
+    const r = await this.db.prepare('SELECT id FROM accounts WHERE last_seen < ? LIMIT 100').bind(cutoff).all<{ id: string }>();
+    return r.results.map((x) => x.id);
   }
   async deleteAccount(id: string) {
     await this.db.batch([
@@ -172,8 +198,8 @@ export class D1Store implements Store {
   async insertGame(game: Game) {
     try {
       await this.db
-        .prepare('INSERT INTO games (id, code, status, version, data, created_at, finished_at) VALUES (?, ?, ?, 1, ?, ?, ?)')
-        .bind(game.id, game.code, game.status, JSON.stringify(game), game.createdAt, game.finishedAt)
+        .prepare('INSERT INTO games (id, code, status, version, data, created_at, finished_at, deadline_at) VALUES (?, ?, ?, 1, ?, ?, ?, ?)')
+        .bind(game.id, game.code, game.status, JSON.stringify(game), game.createdAt, game.finishedAt, game.deadlineAt)
         .run();
       await this.writePlayers(game);
       return true;
@@ -183,8 +209,8 @@ export class D1Store implements Store {
   }
   async saveGame(game: Game, version: number) {
     const r = await this.db
-      .prepare('UPDATE games SET code = ?, status = ?, version = version + 1, data = ?, finished_at = ? WHERE id = ? AND version = ?')
-      .bind(game.code, game.status, JSON.stringify(game), game.finishedAt, game.id, version)
+      .prepare('UPDATE games SET code = ?, status = ?, version = version + 1, data = ?, finished_at = ?, deadline_at = ? WHERE id = ? AND version = ?')
+      .bind(game.code, game.status, JSON.stringify(game), game.finishedAt, game.deadlineAt, game.id, version)
       .run();
     if (r.meta.changes !== 1) return false;
     await this.writePlayers(game);
@@ -218,11 +244,17 @@ export class D1Store implements Store {
       .all<{ data: string; version: number }>();
     return rows.results.map((r) => this.parse(r));
   }
-  async purge(now: number, finishedKeepMs: number, lobbyKeepMs: number) {
-    const old = await this.db
-      .prepare("SELECT id FROM games WHERE (status = 'FINISHED' AND finished_at < ?) OR (status = 'LOBBY' AND created_at < ?) LIMIT 50")
-      .bind(now - finishedKeepMs, now - lobbyKeepMs)
-      .all<{ id: string }>();
-    for (const r of old.results) await this.deleteGame(r.id);
+  async purge(now: number, finishedKeepMs: number, lobbyKeepMs: number, idleKeepMs: number) {
+    // In Runden, bis nichts Altes mehr da ist (höchstens fünf Runden pro Aufruf).
+    for (let round = 0; round < 5; round++) {
+      const old = await this.db
+        .prepare(
+          "SELECT id FROM games WHERE (status = 'FINISHED' AND finished_at < ?) OR (status = 'LOBBY' AND created_at < ?) OR (status = 'RUNNING' AND deadline_at > 0 AND deadline_at < ?) LIMIT 100",
+        )
+        .bind(now - finishedKeepMs, now - lobbyKeepMs, now - idleKeepMs)
+        .all<{ id: string }>();
+      for (const r of old.results) await this.deleteGame(r.id);
+      if (old.results.length < 100) break;
+    }
   }
 }
