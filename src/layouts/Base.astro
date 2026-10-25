@@ -1,5 +1,5 @@
 ---
-import { paths, ui, type Lang, type PageKey } from '../i18n';
+import { base, paths, ui, type Lang, type PageKey } from '../i18n';
 
 interface Props {
   lang: Lang;
@@ -26,7 +26,7 @@ const nav: { key: PageKey; label: string }[] = [
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml" />
     <link rel="alternate" hreflang={other} href={paths[other][page]} />
     <link rel="alternate" hreflang={lang} href={paths[lang][page]} />
   </head>

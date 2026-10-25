@@ -2,6 +2,8 @@
 
 Webseite zur Android-App Rummy (`rp.rummy`): Startseite, Spielregeln, Impressum und Datenschutz, je Deutsch und Englisch. Astro, rein statisch, keine Cookies, keine Fremd-Schriften oder -Skripte.
 
+Live (GitHub Pages, Organisation `rummy-game`, Repo `privacy`): `https://rummy-game.github.io/privacy/`. Die Seite liegt unter dem Unterpfad `/privacy`; `astro.config.mjs` setzt `site` und `base`, alle Links laufen über `src/i18n.ts`. Deploy per `.github/workflows/pages.yml` bei Push auf `main`.
+
 | Deutsch | Englisch |
 |---|---|
 | `/` | `/en/` |

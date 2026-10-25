@@ -1,8 +1,10 @@
 export type Lang = 'de' | 'en';
 
+export const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
 export const paths = {
-  de: { home: '/', rules: '/spielregeln/', legal: '/impressum/', privacy: '/datenschutz/' },
-  en: { home: '/en/', rules: '/en/rules/', legal: '/en/legal-notice/', privacy: '/en/privacy/' },
+  de: { home: `${base}/`, rules: `${base}/spielregeln/`, legal: `${base}/impressum/`, privacy: `${base}/datenschutz/` },
+  en: { home: `${base}/en/`, rules: `${base}/en/rules/`, legal: `${base}/en/legal-notice/`, privacy: `${base}/en/privacy/` },
 } as const;
 
 export type PageKey = keyof typeof paths.de;
