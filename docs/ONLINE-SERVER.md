@@ -8,7 +8,7 @@ Der Online-Mehrspieler der App läuft in diesem Repo als **Cloudflare Pages Func
 - `functions/_lib/`: `service.ts` (Konten, Partien, Fristen), `store.ts` (Speicher: D1 und Arbeitsspeicher für Tests), `codec.ts` (Textformat, Gegenstück zu `OnlineCodec.kt`), `handler.ts` (HTTP), `rules.ts`, `ai.ts`, `names.ts`.
 - `migrations/0001_init.sql`: Tabellen `accounts`, `games`, `game_players`.
 - Gleichzeitige Anfragen auf dieselbe Partie sind über eine Versionsnummer abgesichert (optimistische Sperre, bis zu sechs Wiederholungen).
-- Zugfristen werden beim Zugriff ausgewertet (die Mitspielenden fragen alle 3 s nach), ein Zeitgeber ist nicht nötig. Aufräumen: `.github/workflows/maintenance.yml` ruft täglich `POST /api/maintenance` auf.
+- Zugfristen werden beim Zugriff ausgewertet (die Mitspielenden fragen alle 5 s nach, im eigenen Zug seltener), ein Zeitgeber ist nicht nötig. Aufräumen: `.github/workflows/maintenance.yml` ruft täglich `POST /api/maintenance` auf.
 - Computergegner online: Anfänger und Mittel (Schwer/Experte würden den Tischumbau-Solver brauchen und laufen online wie Mittel; die App bietet sie online nicht an).
 
 ## Einrichten (einmalig, mit Cloudflare-Konto)
