@@ -1,6 +1,6 @@
 // HTTP-Schicht über dem Dienst: dieselben Endpunkte wie der Kotlin-Server (`HttpApi.kt`).
 
-import { decodeMove, decodeNewGame, encodeAccount, encodeReply, encodeSummaries } from './codec';
+import { decodeAuthStart, decodeAuthVerify, decodeMove, decodeNewGame, encodeAccount, encodeReply, encodeSummaries } from './codec';
 import type { OnlineReply } from './codec';
 import type { Service } from './service';
 
@@ -20,10 +20,21 @@ export async function handleApi(request: Request, service: Service, maintenanceT
   const raw = method === 'GET' || method === 'DELETE' ? '' : await request.text();
   if (raw.length > MAX_BODY) return text('error toolarge\n', 413);
 
-  if (method === 'POST' && path === 'account') {
-    const account = await service.createAccount();
-    return account ? text(encodeAccount(account)) : text('error full\n', 503);
+  // Anmeldung und Registrierung nur per E-Mail-Code; anonyme Konten gibt es nicht mehr.
+  if (method === 'POST' && path === 'auth/start') {
+    const req = decodeAuthStart(raw);
+    if (!req) return text('error invalid request\n', 400);
+    const r = await service.startAuth(req.email, req.purpose, req.lang);
+    return text(r.error ? `error ${r.error}\n` : 'ok\n');
   }
+  if (method === 'POST' && path === 'auth/verify') {
+    const req = decodeAuthVerify(raw);
+    if (!req) return text('error invalid request\n', 400);
+    const r = await service.verifyAuth(req.email, req.code, req.purpose);
+    if (r.error) return text(`error ${r.error}\n`);
+    return text(r.account ? encodeAccount(r.account) : 'ok\n');
+  }
+  if (method === 'POST' && path === 'account') return text('error gone\n', 410);
 
   if (method === 'POST' && path === 'maintenance') {
     const given = request.headers.get('X-Maintenance') ?? '';

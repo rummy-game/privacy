@@ -74,6 +74,20 @@ export interface NewGameRequest {
   limitSeconds: number;
 }
 
+export type AuthPurpose = 'login' | 'delete';
+
+export interface AuthStart {
+  email: string;
+  purpose: AuthPurpose;
+  lang: 'de' | 'en';
+}
+
+export interface AuthVerify {
+  email: string;
+  code: string;
+  purpose: AuthPurpose;
+}
+
 export const MIN_LIMIT_SECONDS = 60;
 export const MAX_LIMIT_SECONDS = 7 * 24 * 3600;
 export const DEFAULT_LIMIT_SECONDS = 24 * 3600;
@@ -168,4 +182,36 @@ export function decodeNewGame(text: string): NewGameRequest | null {
   const [seats, jokers, handSize, initialMeldMin, randomStart] = n;
   if (seats < 2 || seats > 4 || limit < MIN_LIMIT_SECONDS || limit > MAX_LIMIT_SECONDS) return null;
   return { seats, rules: { jokers, handSize, initialMeldMin, randomStart: randomStart === 1 }, fillLevel: level, limitSeconds: limit };
+}
+
+function keyValues(text: string): Map<string, string> | null {
+  const lines = text.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => l.trim() !== '');
+  if (lines.length < 2 || lines[lines.length - 1] !== 'end') return null;
+  const map = new Map<string, string>();
+  for (const line of lines.slice(0, -1)) {
+    const sp = line.indexOf(' ');
+    if (sp < 0) return null;
+    map.set(line.slice(0, sp), line.slice(sp + 1).trim());
+  }
+  return map;
+}
+
+/** `email <adresse>`, `purpose login|delete`, `lang de|en`, `end` */
+export function decodeAuthStart(text: string): AuthStart | null {
+  const m = keyValues(text);
+  const email = m?.get('email');
+  const purpose = m?.get('purpose') ?? 'login';
+  const lang = m?.get('lang') ?? 'de';
+  if (!email || (purpose !== 'login' && purpose !== 'delete') || (lang !== 'de' && lang !== 'en')) return null;
+  return { email, purpose, lang };
+}
+
+/** `email <adresse>`, `code <sechs Ziffern>`, `purpose login|delete`, `end` */
+export function decodeAuthVerify(text: string): AuthVerify | null {
+  const m = keyValues(text);
+  const email = m?.get('email');
+  const code = m?.get('code');
+  const purpose = m?.get('purpose') ?? 'login';
+  if (!email || !code || !/^\d{6}$/.test(code) || (purpose !== 'login' && purpose !== 'delete')) return null;
+  return { email, code, purpose };
 }

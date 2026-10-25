@@ -265,8 +265,8 @@ describe('Format und HTTP', () => {
         }),
         service,
       );
-    const p = (await (await call('POST', 'account')).text()).trim().split(' ');
-    const a = { id: p[1], secret: p[2] };
+    const acc = (await service.createAccount())!; // anonyme Konten gibt es nur noch in Tests
+    const a = { id: acc.id, secret: acc.secret };
     expect((await call('GET', 'games')).status).toBe(401);
     expect((await call('GET', 'games', '', { ...a, secret: 'falsch' })).status).toBe(401);
     const created = await (await call('POST', 'games', 'newgame 2 2 14 30 0 BEGINNER 3600\n', a)).text();

@@ -28,10 +28,27 @@ export interface Game {
 
 export interface Account {
   id: string;
+  /** Schlüssel des anonymen Kontos (nur Tests); E-Mail-Konten haben Geräte-Schlüssel in `account_secrets`. */
   secretHash: string;
+  /** Bestätigte E-Mail-Adresse in Kleinbuchstaben, `null` bei anonymen Konten (nur Tests). */
+  email: string | null;
   name: string;
   /** Zeitpunkt der letzten Nutzung (Epoch-Millisekunden), höchstens auf einen Tag genau. */
   lastSeen: number;
+}
+
+export type CodePurpose = 'login' | 'delete';
+
+/** Ein offener Bestätigungscode: nur der Prüfwert wird gespeichert. */
+export interface CodeEntry {
+  email: string;
+  purpose: CodePurpose;
+  codeHash: string;
+  expiresAt: number;
+  attempts: number;
+  sentAt: number;
+  windowStart: number;
+  sentCount: number;
 }
 
 export interface Stored {
@@ -48,6 +65,14 @@ export interface Store {
   createAccount(a: Account): Promise<boolean>;
   getAccount(id: string): Promise<Account | null>;
   renameAccount(id: string, name: string): Promise<boolean>;
+  findAccountByEmail(email: string): Promise<Account | null>;
+  addSecret(accountId: string, secretHash: string, now: number): Promise<void>;
+  hasSecret(accountId: string, secretHash: string): Promise<boolean>;
+  getCode(email: string, purpose: CodePurpose): Promise<CodeEntry | null>;
+  putCode(entry: CodeEntry): Promise<void>;
+  deleteCode(email: string, purpose: CodePurpose): Promise<void>;
+  /** Zählt eine versendete Mail am Tag `day` und liefert den neuen Stand. */
+  countMail(day: number): Promise<number>;
   touchAccount(id: string, now: number): Promise<void>;
   /** Konten, die seit `cutoff` nicht genutzt wurden (höchstens 100). */
   staleAccounts(cutoff: number): Promise<string[]>;
@@ -70,6 +95,9 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 /** Speicher im Arbeitsspeicher, für Tests. */
 export class MemoryStore implements Store {
   accounts = new Map<string, Account>();
+  secrets = new Map<string, Set<string>>();
+  codes = new Map<string, CodeEntry>();
+  mails = new Map<number, number>();
   games = new Map<string, Stored>();
 
   async createAccount(a: Account) {
@@ -87,6 +115,32 @@ export class MemoryStore implements Store {
     a.name = name;
     return true;
   }
+  async findAccountByEmail(email: string) {
+    const a = [...this.accounts.values()].find((x) => x.email === email);
+    return a ? clone(a) : null;
+  }
+  async addSecret(accountId: string, secretHash: string) {
+    if (!this.secrets.has(accountId)) this.secrets.set(accountId, new Set());
+    this.secrets.get(accountId)!.add(secretHash);
+  }
+  async hasSecret(accountId: string, secretHash: string) {
+    return this.secrets.get(accountId)?.has(secretHash) ?? false;
+  }
+  async getCode(email: string, purpose: CodePurpose) {
+    const c = this.codes.get(`${email}|${purpose}`);
+    return c ? clone(c) : null;
+  }
+  async putCode(entry: CodeEntry) {
+    this.codes.set(`${entry.email}|${entry.purpose}`, clone(entry));
+  }
+  async deleteCode(email: string, purpose: CodePurpose) {
+    this.codes.delete(`${email}|${purpose}`);
+  }
+  async countMail(day: number) {
+    const n = (this.mails.get(day) ?? 0) + 1;
+    this.mails.set(day, n);
+    return n;
+  }
   async touchAccount(id: string, now: number) {
     const a = this.accounts.get(id);
     if (a) a.lastSeen = now;
@@ -96,6 +150,7 @@ export class MemoryStore implements Store {
   }
   async deleteAccount(id: string) {
     this.accounts.delete(id);
+    this.secrets.delete(id);
   }
   async countAccounts() {
     return this.accounts.size;
@@ -146,8 +201,8 @@ export class D1Store implements Store {
   async createAccount(a: Account) {
     try {
       await this.db
-        .prepare('INSERT INTO accounts (id, secret_hash, name, created_at, last_seen) VALUES (?, ?, ?, ?, ?)')
-        .bind(a.id, a.secretHash, a.name, a.lastSeen, a.lastSeen)
+        .prepare('INSERT INTO accounts (id, secret_hash, name, created_at, last_seen, email) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(a.id, a.secretHash, a.name, a.lastSeen, a.lastSeen, a.email)
         .run();
       return true;
     } catch {
@@ -156,10 +211,10 @@ export class D1Store implements Store {
   }
   async getAccount(id: string) {
     const r = await this.db
-      .prepare('SELECT id, secret_hash, name, last_seen FROM accounts WHERE id = ?')
+      .prepare('SELECT id, secret_hash, name, last_seen, email FROM accounts WHERE id = ?')
       .bind(id)
-      .first<{ id: string; secret_hash: string; name: string; last_seen: number }>();
-    return r ? { id: r.id, secretHash: r.secret_hash, name: r.name, lastSeen: r.last_seen } : null;
+      .first<{ id: string; secret_hash: string; name: string; last_seen: number; email: string | null }>();
+    return r ? { id: r.id, secretHash: r.secret_hash, name: r.name, lastSeen: r.last_seen, email: r.email } : null;
   }
   async renameAccount(id: string, name: string) {
     try {
@@ -172,6 +227,40 @@ export class D1Store implements Store {
   async touchAccount(id: string, now: number) {
     await this.db.prepare('UPDATE accounts SET last_seen = ? WHERE id = ?').bind(now, id).run();
   }
+  async findAccountByEmail(email: string) {
+    const r = await this.db.prepare('SELECT id FROM accounts WHERE email = ?').bind(email).first<{ id: string }>();
+    return r ? this.getAccount(r.id) : null;
+  }
+  async addSecret(accountId: string, secretHash: string, now: number) {
+    await this.db.prepare('INSERT OR IGNORE INTO account_secrets (account_id, secret_hash, created_at) VALUES (?, ?, ?)').bind(accountId, secretHash, now).run();
+  }
+  async hasSecret(accountId: string, secretHash: string) {
+    const r = await this.db.prepare('SELECT 1 AS x FROM account_secrets WHERE account_id = ? AND secret_hash = ?').bind(accountId, secretHash).first();
+    return r !== null;
+  }
+  async getCode(email: string, purpose: CodePurpose) {
+    const r = await this.db
+      .prepare('SELECT email, purpose, code_hash, expires_at, attempts, sent_at, window_start, sent_count FROM email_codes WHERE email = ? AND purpose = ?')
+      .bind(email, purpose)
+      .first<{ email: string; purpose: CodePurpose; code_hash: string; expires_at: number; attempts: number; sent_at: number; window_start: number; sent_count: number }>();
+    return r
+      ? { email: r.email, purpose: r.purpose, codeHash: r.code_hash, expiresAt: r.expires_at, attempts: r.attempts, sentAt: r.sent_at, windowStart: r.window_start, sentCount: r.sent_count }
+      : null;
+  }
+  async putCode(e: CodeEntry) {
+    await this.db
+      .prepare('INSERT OR REPLACE INTO email_codes (email, purpose, code_hash, expires_at, attempts, sent_at, window_start, sent_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(e.email, e.purpose, e.codeHash, e.expiresAt, e.attempts, e.sentAt, e.windowStart, e.sentCount)
+      .run();
+  }
+  async deleteCode(email: string, purpose: CodePurpose) {
+    await this.db.prepare('DELETE FROM email_codes WHERE email = ? AND purpose = ?').bind(email, purpose).run();
+  }
+  async countMail(day: number) {
+    await this.db.prepare('INSERT INTO mail_counter (day, sent) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET sent = sent + 1').bind(day).run();
+    const r = await this.db.prepare('SELECT sent FROM mail_counter WHERE day = ?').bind(day).first<{ sent: number }>();
+    return r?.sent ?? 1;
+  }
   async staleAccounts(cutoff: number) {
     const r = await this.db.prepare('SELECT id FROM accounts WHERE last_seen < ? LIMIT 100').bind(cutoff).all<{ id: string }>();
     return r.results.map((x) => x.id);
@@ -179,6 +268,7 @@ export class D1Store implements Store {
   async deleteAccount(id: string) {
     await this.db.batch([
       this.db.prepare('DELETE FROM game_players WHERE account_id = ?').bind(id),
+      this.db.prepare('DELETE FROM account_secrets WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM accounts WHERE id = ?').bind(id),
     ]);
   }

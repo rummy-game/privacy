@@ -3,7 +3,9 @@
 
 import { chooseMove } from './ai';
 import type { AiLevel } from './ai';
-import type { NewGameRequest, OnlineMove, OnlineReply, OnlineSummary, OnlineView } from './codec';
+import type { AuthPurpose, NewGameRequest, OnlineMove, OnlineReply, OnlineSummary, OnlineView } from './codec';
+import { NoMailer } from './mailer';
+import type { Mailer } from './mailer';
 import { randomName } from './names';
 import {
   drawOrPass,
@@ -27,6 +29,28 @@ export const IDLE_GAME_KEEP_MS = 30 * 24 * 3600 * 1000;
 /** Konten ohne Nutzung werden nach dieser Zeit gelöscht. */
 export const INACTIVE_ACCOUNT_MS = 365 * 24 * 3600 * 1000;
 const TOUCH_INTERVAL_MS = 24 * 3600 * 1000;
+
+// E-Mail-Anmeldung
+export const CODE_TTL_MS = 15 * 60 * 1000;
+export const MAX_CODE_ATTEMPTS = 5;
+const MIN_RESEND_MS = 30 * 1000;
+const MAX_CODES_PER_HOUR = 5;
+const HOUR_MS = 3600 * 1000;
+/** Tageslimit des Mailanbieters (Brevo kostenlos: 300) mit etwas Reserve. */
+export const MAX_MAILS_PER_DAY = 250;
+
+export interface AuthResult {
+  error: string | null;
+  account?: { id: string; secret: string; name: string; isNew: boolean };
+}
+
+/** Kleinbuchstaben, ohne Leerraum; `null`, wenn es keine plausible Adresse ist. */
+export function normalizeEmail(raw: string): string | null {
+  const email = raw.trim().toLowerCase();
+  if (email.length < 6 || email.length > 254) return null;
+  if (!/^[^\s@<>"',;:\\]+@[^\s@<>"',;:\\]+\.[a-z0-9-]{2,}$/.test(email)) return null;
+  return email;
+}
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 const RETRIES = 6;
@@ -57,6 +81,7 @@ export class Service {
     private store: Store,
     private clock: () => number = Date.now,
     private rng: Rng,
+    private mailer: Mailer = new NoMailer(),
   ) {}
 
   // --- Konten ---
@@ -65,21 +90,122 @@ export class Service {
     return hex(Uint8Array.from({ length: bytes }, () => Math.floor(this.rng() * 256)));
   }
 
+  /** Konto ohne E-Mail: nur für Tests; im Betrieb gibt es Konten ausschließlich über [verifyAuth]. */
   async createAccount(): Promise<{ id: string; secret: string; name: string } | null> {
     if ((await this.store.countAccounts()) >= MAX_ACCOUNTS) return null;
     const secret = this.token(16);
     const secretHash = await sha256(secret);
     for (let i = 0; i < 20; i++) {
-      const account = { id: this.token(8), secretHash, name: randomName(this.rng), lastSeen: this.clock() };
+      const account = { id: this.token(8), secretHash, email: null, name: randomName(this.rng), lastSeen: this.clock() };
       if (await this.store.createAccount(account)) return { id: account.id, secret, name: account.name };
     }
     return null;
   }
 
+  // --- Anmeldung per E-Mail ---
+
+  /**
+   * Schickt einen sechsstelligen Code an die Adresse. Ob es dazu schon ein Konto gibt, verrät die Antwort nicht
+   * (beim Löschen wird nur gesendet, wenn es eins gibt). Fehler: `invalid-email`, `throttled`, `busy`, `mail`.
+   */
+  async startAuth(rawEmail: string, purpose: AuthPurpose, lang: 'de' | 'en'): Promise<{ error: string | null }> {
+    const email = normalizeEmail(rawEmail);
+    if (!email) return { error: 'invalid-email' };
+    if (purpose === 'delete' && !(await this.store.findAccountByEmail(email))) return { error: null };
+
+    const now = this.clock();
+    const old = await this.store.getCode(email, purpose);
+    let windowStart = now;
+    let sentCount = 1;
+    if (old) {
+      if (now - old.sentAt < MIN_RESEND_MS) return { error: 'throttled' };
+      if (now - old.windowStart < HOUR_MS) {
+        if (old.sentCount >= MAX_CODES_PER_HOUR) return { error: 'throttled' };
+        windowStart = old.windowStart;
+        sentCount = old.sentCount + 1;
+      }
+    }
+    if ((await this.store.countMail(Math.floor(now / (24 * HOUR_MS)))) > MAX_MAILS_PER_DAY) return { error: 'busy' };
+
+    const code = String(Math.floor(this.rng() * 900000) + 100000);
+    await this.store.putCode({
+      email,
+      purpose,
+      codeHash: await sha256(`${email}|${purpose}|${code}`),
+      expiresAt: now + CODE_TTL_MS,
+      attempts: 0,
+      sentAt: now,
+      windowStart,
+      sentCount,
+    });
+    const text = lang === 'de'
+      ? purpose === 'login'
+        ? `Dein Bestätigungscode für Rummy: ${code}\n\nEr gilt 15 Minuten. Wenn du ihn nicht angefordert hast, kannst du diese E-Mail ignorieren.\n`
+        : `Dein Code zum Löschen deines Rummy-Kontos: ${code}\n\nEr gilt 15 Minuten. Wenn du das nicht angefordert hast, ignoriere diese E-Mail: Dein Konto bleibt dann bestehen.\n`
+      : purpose === 'login'
+        ? `Your confirmation code for Rummy: ${code}\n\nIt is valid for 15 minutes. If you did not request it, you can ignore this email.\n`
+        : `Your code to delete your Rummy account: ${code}\n\nIt is valid for 15 minutes. If you did not request this, ignore this email: your account will remain.\n`;
+    const subject = lang === 'de' ? (purpose === 'login' ? 'Dein Rummy-Code' : 'Rummy-Konto löschen') : (purpose === 'login' ? 'Your Rummy code' : 'Delete Rummy account');
+    if (!(await this.mailer.send(email, subject, text))) {
+      await this.store.deleteCode(email, purpose);
+      return { error: 'mail' };
+    }
+    return { error: null };
+  }
+
+  /**
+   * Prüft den Code. Anmelden: legt beim ersten Mal das Konto an und gibt dem Gerät einen neuen Schlüssel (weitere
+   * Geräte desselben Kontos bleiben angemeldet). Löschen: entfernt das Konto zu dieser Adresse samt Schlüsseln.
+   * Fehler: `invalid-email`, `code`, `locked`.
+   */
+  async verifyAuth(rawEmail: string, code: string, purpose: AuthPurpose): Promise<AuthResult> {
+    const email = normalizeEmail(rawEmail);
+    if (!email) return { error: 'invalid-email' };
+    const entry = await this.store.getCode(email, purpose);
+    const now = this.clock();
+    if (!entry || now > entry.expiresAt) return { error: 'code' };
+    if (entry.attempts >= MAX_CODE_ATTEMPTS) return { error: 'locked' };
+    if (!sameText(entry.codeHash, await sha256(`${email}|${purpose}|${code}`))) {
+      await this.store.putCode({ ...entry, attempts: entry.attempts + 1 });
+      return { error: entry.attempts + 1 >= MAX_CODE_ATTEMPTS ? 'locked' : 'code' };
+    }
+    await this.store.deleteCode(email, purpose);
+
+    const existing = await this.store.findAccountByEmail(email);
+    if (purpose === 'delete') {
+      if (existing) await this.deleteAccount(existing.id);
+      return { error: null };
+    }
+    const secret = this.token(16);
+    const secretHash = await sha256(secret);
+    if (existing) {
+      await this.store.addSecret(existing.id, secretHash, now);
+      await this.store.touchAccount(existing.id, now);
+      return { error: null, account: { id: existing.id, secret, name: existing.name, isNew: false } };
+    }
+    if ((await this.store.countAccounts()) >= MAX_ACCOUNTS) return { error: 'busy' };
+    for (let i = 0; i < 20; i++) {
+      const account = { id: this.token(8), secretHash: '', email, name: randomName(this.rng), lastSeen: now };
+      if (await this.store.createAccount(account)) {
+        await this.store.addSecret(account.id, secretHash, now);
+        return { error: null, account: { id: account.id, secret, name: account.name, isNew: true } };
+      }
+      // Name oder Kennung schon vergeben, oder eine parallele Anfrage hat das Konto zur Adresse angelegt.
+      const raced = await this.store.findAccountByEmail(email);
+      if (raced) {
+        await this.store.addSecret(raced.id, secretHash, now);
+        return { error: null, account: { id: raced.id, secret, name: raced.name, isNew: false } };
+      }
+    }
+    return { error: 'busy' };
+  }
+
   async authenticate(id: string, secret: string): Promise<boolean> {
     if (!id || !secret || id.length > 64 || secret.length > 128) return false;
     const account = await this.store.getAccount(id);
-    if (account === null || !sameText(account.secretHash, await sha256(secret))) return false;
+    if (account === null) return false;
+    const hash = await sha256(secret);
+    if (!(account.secretHash !== '' && sameText(account.secretHash, hash)) && !(await this.store.hasSecret(id, hash))) return false;
     // Höchstens einmal am Tag schreiben: genügt, um inaktive Konten zu erkennen.
     const now = this.clock();
     if (now - account.lastSeen > TOUCH_INTERVAL_MS) await this.store.touchAccount(id, now);
