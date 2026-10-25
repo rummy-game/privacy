@@ -6,5 +6,5 @@ pages_build_output_dir = "./dist"
 binding = "DB"
 database_name = "rummy"
 # Nach `wrangler d1 create rummy` hier die ausgegebene ID eintragen (siehe docs/ONLINE-SERVER.md).
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "89b04a13-c8dd-4e79-bca7-ea882979e16c"
 migrations_dir = "migrations"

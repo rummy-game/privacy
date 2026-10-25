@@ -36,6 +36,13 @@ npx wrangler d1 migrations apply rummy --local
 npm run build && npx wrangler pages dev dist --port 8788   # echter Dienst mit lokaler D1
 ```
 
+## Stand der Einrichtung (25.10.2026)
+
+- Cloudflare-Konto Fsnavivfr@gmail.com, D1-Datenbank `rummy` (Region WEUR, ID in `wrangler.toml`), alle drei Migrationen eingespielt, Pages-Projekt `rummy-game`, Adresse **https://rummy-game-6ke.pages.dev** (Produktions-Zweig `main`, Direkt-Upload mit `wrangler pages deploy dist --project-name rummy-game --branch main`).
+- Secret `MAINTENANCE_TOKEN` im Pages-Projekt und als GitHub-Secret (`ONLINE_URL`, `MAINTENANCE_TOKEN`) für `.github/workflows/maintenance.yml`.
+- **Offen:** `BREVO_API_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` (ohne sie meldet `/api/auth/start` „mail"): `wrangler pages secret put BREVO_API_KEY --project-name rummy-game`, Variablen im Dashboard unter Einstellungen → Variablen und Secrets.
+- `wrangler` meldet sich per OAuth an (`npx.cmd wrangler login` im Terminal, vorher `CLOUDFLARE_API_TOKEN` leeren: das Token in der Umgebung gehört zu den anderen Seiten und hat keine D1-Rechte).
+
 ## Anmeldung per E-Mail (Branch `feature/email-registration`)
 
 - Registrierung und Anmeldung nur per E-Mail-Code: `POST /api/auth/start` (Adresse, Zweck `login` oder `delete`, Sprache) und `POST /api/auth/verify` (Adresse, sechsstelliger Code). Beim ersten Mal entsteht das Konto zur Adresse, jedes Gerät bekommt einen eigenen Schlüssel (`account_secrets`). Anonyme Konten gibt es nicht mehr (`POST /api/account` antwortet 410). Löschen: in der App oder über einen Code mit Zweck `delete`.
