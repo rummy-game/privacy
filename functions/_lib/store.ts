@@ -71,6 +71,8 @@ export interface Store {
   getCode(email: string, purpose: CodePurpose): Promise<CodeEntry | null>;
   putCode(entry: CodeEntry): Promise<void>;
   deleteCode(email: string, purpose: CodePurpose): Promise<void>;
+  /** Abgelaufene Bestätigungscodes löschen, die vor `before` verschickt wurden. */
+  purgeCodes(before: number): Promise<void>;
   /** Zählt eine versendete Mail am Tag `day` und liefert den neuen Stand. */
   countMail(day: number): Promise<number>;
   touchAccount(id: string, now: number): Promise<void>;
@@ -135,6 +137,9 @@ export class MemoryStore implements Store {
   }
   async deleteCode(email: string, purpose: CodePurpose) {
     this.codes.delete(`${email}|${purpose}`);
+  }
+  async purgeCodes(before: number) {
+    for (const [k, c] of this.codes) if (c.sentAt < before) this.codes.delete(k);
   }
   async countMail(day: number) {
     const n = (this.mails.get(day) ?? 0) + 1;
@@ -255,6 +260,10 @@ export class D1Store implements Store {
   }
   async deleteCode(email: string, purpose: CodePurpose) {
     await this.db.prepare('DELETE FROM email_codes WHERE email = ? AND purpose = ?').bind(email, purpose).run();
+  }
+  async purgeCodes(before: number) {
+    await this.db.prepare('DELETE FROM email_codes WHERE sent_at < ?').bind(before).run();
+    await this.db.prepare('DELETE FROM mail_counter WHERE day < ?').bind(Math.floor(before / 86_400_000) - 7).run();
   }
   async countMail(day: number) {
     await this.db.prepare('INSERT INTO mail_counter (day, sent) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET sent = sent + 1').bind(day).run();

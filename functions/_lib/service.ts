@@ -379,6 +379,7 @@ export class Service {
   async maintenance(): Promise<void> {
     const now = this.clock();
     await this.store.purge(now, FINISHED_KEEP_MS, LOBBY_KEEP_MS, IDLE_GAME_KEEP_MS);
+    await this.store.purgeCodes(now - 24 * HOUR_MS);
     for (const id of await this.store.staleAccounts(now - INACTIVE_ACCOUNT_MS)) await this.deleteAccount(id);
   }
 

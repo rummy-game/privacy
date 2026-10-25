@@ -6,39 +6,39 @@ const { lang } = Astro.props as { lang: Lang };
 ---
 
 {lang === 'de' ? (
-  <Base lang="de" page="deletion" title="Konto löschen – Rummy" description="So löschst du dein anonymes Online-Konto der Android-App Rummy.">
+  <Base lang="de" page="deletion" title="Konto löschen – Rummy" description="So löschst du dein Online-Konto der Android-App Rummy.">
     <h1>Konto löschen</h1>
-    <p class="meta">Für das anonyme Online-Konto der Android-App <strong>Rummy</strong> (Paket-ID: <code>rp.rummy</code>).</p>
+    <p class="meta">Für das Online-Konto der Android-App <strong>Rummy</strong> (Paket-ID: <code>rp.rummy</code>).</p>
 
     <h2>In der App</h2>
     <ol>
       <li>Rummy öffnen und „Online spielen“ wählen.</li>
       <li>Im Bereich „Dein Name“ auf „Konto löschen“ tippen und die Rückfrage bestätigen.</li>
     </ol>
-    <p>Dabei werden das Konto und die Zuordnung zu deinen Partien sofort gelöscht. Laufende Partien werden aufgegeben, der Computer übernimmt deinen Platz. Die App entfernt außerdem die Konto-Daten von deinem Gerät.</p>
+    <p>Dabei werden das Konto, die E-Mail-Adresse und die Zuordnung zu deinen Partien sofort gelöscht. Laufende Partien werden aufgegeben, der Computer übernimmt deinen Platz. Die App entfernt außerdem die Konto-Daten von deinem Gerät.</p>
 
     <h2>Ohne die App</h2>
-    <p>Hast du die App nicht mehr oder kannst sie nicht öffnen, schreibe an <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a> und nenne deinen Spielernamen (zum Beispiel „Flinker-Fuchs-417“). Weil Konten anonym sind, kann ich nur löschen, wenn ich dir das Konto sicher zuordnen kann; ich melde mich dazu bei Bedarf mit einer Rückfrage. Die Löschung erfolgt in der Regel innerhalb von 30 Tagen.</p>
+    <p>Hast du die App nicht mehr oder kannst sie nicht öffnen, schreibe von der E-Mail-Adresse, mit der du dich registriert hast, an <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a> und bitte um Löschung deines Kontos. Ich lösche Konto und Adresse in der Regel innerhalb von 30 Tagen. Kommt die Mail von einer anderen Adresse, melde ich mich mit einer Rückfrage.</p>
 
     <h2>Was gelöscht wird</h2>
-    <p>Konto-Kennung, Prüfwert des Schlüssels, Spielername und die Verknüpfung mit Partien. Spielstände beendeter Partien, die keine Verknüpfung zu einem Konto mehr haben, werden spätestens 30 Tage nach Spielende gelöscht. Mehr dazu in der <a href={paths.de.privacy}>Datenschutzerklärung</a>.</p>
+    <p>E-Mail-Adresse, Konto-Kennung, Prüfwerte der Geräteschlüssel, Spielername und die Verknüpfung mit Partien. Spielstände beendeter Partien, die keine Verknüpfung zu einem Konto mehr haben, werden 30 Tage nach Spielende gelöscht. Mehr dazu in der <a href={paths.de.privacy}>Datenschutzerklärung</a>.</p>
   </Base>
 ) : (
-  <Base lang="en" page="deletion" title="Delete account – Rummy" description="How to delete your anonymous online account of the Android app Rummy.">
+  <Base lang="en" page="deletion" title="Delete account – Rummy" description="How to delete your online account of the Android app Rummy.">
     <h1>Delete account</h1>
-    <p class="meta">For the anonymous online account of the Android app <strong>Rummy</strong> (package ID: <code>rp.rummy</code>).</p>
+    <p class="meta">For the online account of the Android app <strong>Rummy</strong> (package ID: <code>rp.rummy</code>).</p>
 
     <h2>In the app</h2>
     <ol>
       <li>Open Rummy and choose “Play online”.</li>
       <li>In the “Your name” section tap “Delete account” and confirm the prompt.</li>
     </ol>
-    <p>The account and its link to your games are deleted immediately. Running games are forfeited and the computer takes over your seat. The app also removes the account data from your device.</p>
+    <p>The account, the email address and the link to your games are deleted immediately. Running games are forfeited and the computer takes over your seat. The app also removes the account data from your device.</p>
 
     <h2>Without the app</h2>
-    <p>If you no longer have the app or cannot open it, write to <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a> and give your player name (for example “Flinker-Fuchs-417”). Because accounts are anonymous, I can only delete one if I can reliably match it to you; I will ask a follow-up question if needed. Deletion normally happens within 30 days.</p>
+    <p>If you no longer have the app or cannot open it, write from the email address you registered with to <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a> and ask for your account to be deleted. I normally delete the account and the address within 30 days. If the mail comes from another address, I will ask a follow-up question.</p>
 
     <h2>What is deleted</h2>
-    <p>Account ID, check value of the key, player name and the link to games. Game states of finished games that no longer link to an account are deleted at the latest 30 days after the game ends. More in the <a href={paths.en.privacy}>privacy policy</a>.</p>
+    <p>Email address, account ID, check values of the device keys, player name and the link to games. Game states of finished games that no longer link to an account are deleted 30 days after the game ends. More in the <a href={paths.en.privacy}>privacy policy</a>.</p>
   </Base>
 )}

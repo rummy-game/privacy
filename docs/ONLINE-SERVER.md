@@ -36,6 +36,13 @@ npx wrangler d1 migrations apply rummy --local
 npm run build && npx wrangler pages dev dist --port 8788   # echter Dienst mit lokaler D1
 ```
 
+## Anmeldung per E-Mail (Branch `feature/email-registration`)
+
+- Registrierung und Anmeldung nur per E-Mail-Code: `POST /api/auth/start` (Adresse, Zweck `login` oder `delete`, Sprache) und `POST /api/auth/verify` (Adresse, sechsstelliger Code). Beim ersten Mal entsteht das Konto zur Adresse, jedes Gerät bekommt einen eigenen Schlüssel (`account_secrets`). Anonyme Konten gibt es nicht mehr (`POST /api/account` antwortet 410). Löschen: in der App oder über einen Code mit Zweck `delete`.
+- Grenzen: 30 s Pause zwischen zwei Codes, höchstens 5 Codes je Adresse und Stunde, 5 Fehlversuche je Code, Code gilt 15 Minuten, höchstens 250 Mails pro Tag (Brevo kostenlos: 300).
+- Versand über **Brevo** (transaktionale E-Mail, HTTP-Schnittstelle): in Cloudflare die Secrets `BREVO_API_KEY` und die Variablen `MAIL_FROM` (in Brevo bestätigte Absenderadresse) und `MAIL_FROM_NAME` setzen. Ohne diese Angaben meldet der Dienst „mail“ und niemand kann sich anmelden. Auftragsverarbeitung mit Brevo (DPA) im Brevo-Konto bestätigen. Hinweis: Eine Gmail-Adresse als Absender liefert schlecht zu; besser eine eigene Domain mit SPF/DKIM bei Brevo einrichten.
+- Migration `0003_email_auth.sql` zusätzlich einspielen (`wrangler d1 migrations apply rummy --remote`).
+
 ## Vor dem Einschalten in der App
 
 Datenschutz, Nutzungsbedingungen, Konto-Löschseite und Impressum stehen schon in dieser Fassung (Branch `online-server`). **Erst zusammen mit der App-Fassung veröffentlichen, die den Online-Modus einschaltet**, sonst beschreibt die Seite etwas, das es im Store noch nicht gibt. Außerdem in der Play Console: Data Safety, Altersfreigabe (IARC) mit Nutzerinteraktion und die Adresse der Konto-Löschseite eintragen.

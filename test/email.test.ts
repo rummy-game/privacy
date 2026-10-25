@@ -135,6 +135,16 @@ describe('E-Mail-Anmeldung', () => {
     expect(store.secrets.has(acc.id)).toBe(false);
   });
 
+  it('alte Codes werden beim täglichen Aufräumen gelöscht', async () => {
+    const { service, store, clock, mailer } = setup();
+    await service.startAuth('l@example.com', 'login', 'de');
+    expect(await store.getCode('l@example.com', 'login')).not.toBeNull();
+    clock.now += 25 * 3_600_000;
+    await service.maintenance();
+    expect(await store.getCode('l@example.com', 'login')).toBeNull();
+    expect((await service.verifyAuth('l@example.com', mailer.lastCode()!, 'login')).error).toBe('code');
+  });
+
   it('die Antwort verrät nicht, ob es die Adresse schon gibt', async () => {
     const { service, mailer, clock } = setup();
     await service.startAuth('i@example.com', 'login', 'de');
