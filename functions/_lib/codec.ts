@@ -132,6 +132,32 @@ export function encodeSummaries(list: OnlineSummary[]): string {
   return lines.join('\n') + '\n';
 }
 
+/** `partner <id> <name>` je Zeile. */
+export function encodePartners(list: Array<{ id: string; name: string }>): string {
+  return ['RUMMY-PARTNERS 1', ...list.map((p) => `partner ${p.id} ${clean(p.name)}`), 'end'].join('\n') + '\n';
+}
+
+/** `invite <Partie> <Plätze> <Name>` je Zeile. */
+export function encodeInvites(list: Array<{ gameId: string; fromName: string; seats: number }>): string {
+  return ['RUMMY-INVITES 1', ...list.map((i) => `invite ${i.gameId} ${i.seats} ${clean(i.fromName)}`), 'end'].join('\n') + '\n';
+}
+
+/** `token <Gerätetoken>`, `lang de|en` (Zeilen in beliebiger Reihenfolge, ohne `end`). */
+export function decodePush(text: string): { token: string; lang: string } | null {
+  let token = '';
+  let lang = 'de';
+  for (const line of text.split('\n').map((l) => l.trim()).filter(Boolean)) {
+    const sp = line.indexOf(' ');
+    if (sp < 0) return null;
+    const key = line.slice(0, sp);
+    const value = line.slice(sp + 1).trim();
+    if (key === 'token') token = value;
+    else if (key === 'lang') lang = value === 'en' ? 'en' : 'de';
+    else return null;
+  }
+  return token ? { token, lang } : null;
+}
+
 export const encodeAccount = (a: { id: string; secret: string; name: string }) => `account ${a.id} ${a.secret} ${clean(a.name)}\n`;
 
 function parseIds(text: string): number[] | null {

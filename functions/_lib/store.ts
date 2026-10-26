@@ -51,6 +51,22 @@ export interface CodeEntry {
   sentCount: number;
 }
 
+export interface PushToken {
+  token: string;
+  lang: string;
+}
+
+export interface PartnerEntry {
+  id: string;
+  name: string;
+}
+
+export interface InviteEntry {
+  gameId: string;
+  fromId: string;
+  createdAt: number;
+}
+
 export interface Stored {
   game: Game;
   version: number;
@@ -81,6 +97,25 @@ export interface Store {
   deleteAccount(id: string): Promise<void>;
   countAccounts(): Promise<number>;
 
+  /** Gerätetoken für Benachrichtigungen; je Konto bleiben höchstens die fünf neuesten. */
+  addPushToken(accountId: string, token: string, lang: string, now: number): Promise<void>;
+  removePushToken(accountId: string, token: string): Promise<void>;
+  /** Löscht einen Token überall (Gerät nicht mehr erreichbar). */
+  dropPushToken(token: string): Promise<void>;
+  pushTokensOf(accountId: string): Promise<PushToken[]>;
+
+  /** Gemerkte Spielpartner (gegenseitig). */
+  addPartners(a: string, b: string, now: number): Promise<void>;
+  removePartners(a: string, b: string): Promise<void>;
+  partnersOf(accountId: string): Promise<PartnerEntry[]>;
+  isPartner(a: string, b: string): Promise<boolean>;
+
+  /** Einladungen in eine Lobby ohne Code. */
+  putInvite(gameId: string, to: string, from: string, now: number): Promise<void>;
+  invitesOf(to: string): Promise<InviteEntry[]>;
+  deleteInvite(gameId: string, to: string): Promise<void>;
+  hasInvite(gameId: string, to: string): Promise<boolean>;
+
   loadGame(id: string): Promise<Stored | null>;
   insertGame(game: Game): Promise<boolean>;
   saveGame(game: Game, version: number): Promise<boolean>;
@@ -101,6 +136,9 @@ export class MemoryStore implements Store {
   codes = new Map<string, CodeEntry>();
   mails = new Map<number, number>();
   games = new Map<string, Stored>();
+  pushTokens = new Map<string, { accountId: string; lang: string; at: number }>();
+  partners = new Map<string, Set<string>>();
+  invites: Array<{ gameId: string; to: string; from: string; at: number }> = [];
 
   async createAccount(a: Account) {
     if (this.accounts.has(a.id) || [...this.accounts.values()].some((x) => x.name === a.name)) return false;
@@ -156,6 +194,55 @@ export class MemoryStore implements Store {
   async deleteAccount(id: string) {
     this.accounts.delete(id);
     this.secrets.delete(id);
+    for (const [t, v] of this.pushTokens) if (v.accountId === id) this.pushTokens.delete(t);
+    this.partners.delete(id);
+    for (const set of this.partners.values()) set.delete(id);
+    this.invites = this.invites.filter((i) => i.to !== id && i.from !== id);
+  }
+  async addPushToken(accountId: string, token: string, lang: string, now: number) {
+    this.pushTokens.set(token, { accountId, lang, at: now });
+    const mine = [...this.pushTokens.entries()].filter(([, v]) => v.accountId === accountId).sort((a, b) => b[1].at - a[1].at);
+    for (const [t] of mine.slice(5)) this.pushTokens.delete(t);
+  }
+  async removePushToken(accountId: string, token: string) {
+    if (this.pushTokens.get(token)?.accountId === accountId) this.pushTokens.delete(token);
+  }
+  async dropPushToken(token: string) {
+    this.pushTokens.delete(token);
+  }
+  async pushTokensOf(accountId: string) {
+    return [...this.pushTokens.entries()].filter(([, v]) => v.accountId === accountId).map(([token, v]) => ({ token, lang: v.lang }));
+  }
+  async addPartners(a: string, b: string) {
+    for (const [x, y] of [[a, b], [b, a]]) {
+      if (!this.partners.has(x)) this.partners.set(x, new Set());
+      this.partners.get(x)!.add(y);
+    }
+  }
+  async removePartners(a: string, b: string) {
+    this.partners.get(a)?.delete(b);
+    this.partners.get(b)?.delete(a);
+  }
+  async partnersOf(accountId: string) {
+    return [...(this.partners.get(accountId) ?? [])]
+      .map((id) => ({ id, name: this.accounts.get(id)?.name ?? '' }))
+      .filter((p) => p.name !== '')
+      .sort((x, y) => x.name.localeCompare(y.name));
+  }
+  async isPartner(a: string, b: string) {
+    return this.partners.get(a)?.has(b) ?? false;
+  }
+  async putInvite(gameId: string, to: string, from: string, now: number) {
+    if (!this.invites.some((i) => i.gameId === gameId && i.to === to)) this.invites.push({ gameId, to, from, at: now });
+  }
+  async invitesOf(to: string) {
+    return this.invites.filter((i) => i.to === to).map((i) => ({ gameId: i.gameId, fromId: i.from, createdAt: i.at }));
+  }
+  async deleteInvite(gameId: string, to: string) {
+    this.invites = this.invites.filter((i) => !(i.gameId === gameId && i.to === to));
+  }
+  async hasInvite(gameId: string, to: string) {
+    return this.invites.some((i) => i.gameId === gameId && i.to === to);
   }
   async countAccounts() {
     return this.accounts.size;
@@ -274,8 +361,70 @@ export class D1Store implements Store {
     const r = await this.db.prepare('SELECT id FROM accounts WHERE last_seen < ? LIMIT 100').bind(cutoff).all<{ id: string }>();
     return r.results.map((x) => x.id);
   }
+  async addPushToken(accountId: string, token: string, lang: string, now: number) {
+    await this.db
+      .prepare('INSERT OR REPLACE INTO push_tokens (token, account_id, lang, created_at) VALUES (?, ?, ?, ?)')
+      .bind(token, accountId, lang, now)
+      .run();
+    await this.db
+      .prepare('DELETE FROM push_tokens WHERE account_id = ? AND token NOT IN (SELECT token FROM push_tokens WHERE account_id = ? ORDER BY created_at DESC LIMIT 5)')
+      .bind(accountId, accountId)
+      .run();
+  }
+  async removePushToken(accountId: string, token: string) {
+    await this.db.prepare('DELETE FROM push_tokens WHERE account_id = ? AND token = ?').bind(accountId, token).run();
+  }
+  async dropPushToken(token: string) {
+    await this.db.prepare('DELETE FROM push_tokens WHERE token = ?').bind(token).run();
+  }
+  async pushTokensOf(accountId: string) {
+    const r = await this.db.prepare('SELECT token, lang FROM push_tokens WHERE account_id = ?').bind(accountId).all<{ token: string; lang: string }>();
+    return r.results.map((x) => ({ token: x.token, lang: x.lang }));
+  }
+  async addPartners(a: string, b: string, now: number) {
+    await this.db.batch([
+      this.db.prepare('INSERT OR IGNORE INTO partners (account_id, partner_id, since) VALUES (?, ?, ?)').bind(a, b, now),
+      this.db.prepare('INSERT OR IGNORE INTO partners (account_id, partner_id, since) VALUES (?, ?, ?)').bind(b, a, now),
+    ]);
+  }
+  async removePartners(a: string, b: string) {
+    await this.db.batch([
+      this.db.prepare('DELETE FROM partners WHERE account_id = ? AND partner_id = ?').bind(a, b),
+      this.db.prepare('DELETE FROM partners WHERE account_id = ? AND partner_id = ?').bind(b, a),
+    ]);
+  }
+  async partnersOf(accountId: string) {
+    const r = await this.db
+      .prepare('SELECT a.id AS id, a.name AS name FROM partners p JOIN accounts a ON a.id = p.partner_id WHERE p.account_id = ? ORDER BY a.name')
+      .bind(accountId)
+      .all<{ id: string; name: string }>();
+    return r.results.map((x) => ({ id: x.id, name: x.name }));
+  }
+  async isPartner(a: string, b: string) {
+    return (await this.db.prepare('SELECT 1 AS x FROM partners WHERE account_id = ? AND partner_id = ?').bind(a, b).first()) !== null;
+  }
+  async putInvite(gameId: string, to: string, from: string, now: number) {
+    await this.db.prepare('INSERT OR IGNORE INTO invites (game_id, to_account, from_account, created_at) VALUES (?, ?, ?, ?)').bind(gameId, to, from, now).run();
+  }
+  async invitesOf(to: string) {
+    const r = await this.db
+      .prepare('SELECT game_id, from_account, created_at FROM invites WHERE to_account = ? ORDER BY created_at DESC')
+      .bind(to)
+      .all<{ game_id: string; from_account: string; created_at: number }>();
+    return r.results.map((x) => ({ gameId: x.game_id, fromId: x.from_account, createdAt: x.created_at }));
+  }
+  async deleteInvite(gameId: string, to: string) {
+    await this.db.prepare('DELETE FROM invites WHERE game_id = ? AND to_account = ?').bind(gameId, to).run();
+  }
+  async hasInvite(gameId: string, to: string) {
+    return (await this.db.prepare('SELECT 1 AS x FROM invites WHERE game_id = ? AND to_account = ?').bind(gameId, to).first()) !== null;
+  }
+
   async deleteAccount(id: string) {
     await this.db.batch([
+      this.db.prepare('DELETE FROM push_tokens WHERE account_id = ?').bind(id),
+      this.db.prepare('DELETE FROM partners WHERE account_id = ? OR partner_id = ?').bind(id, id),
+      this.db.prepare('DELETE FROM invites WHERE to_account = ? OR from_account = ?').bind(id, id),
       this.db.prepare('DELETE FROM game_players WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM account_secrets WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM accounts WHERE id = ?').bind(id),

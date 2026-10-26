@@ -1,6 +1,6 @@
 // HTTP-Schicht über dem Dienst: dieselben Endpunkte wie der Kotlin-Server (`HttpApi.kt`).
 
-import { decodeAuthStart, decodeAuthVerify, decodeMove, decodeNewGame, encodeAccount, encodeReply, encodeSummaries } from './codec';
+import { decodeAuthStart, decodeAuthVerify, decodeMove, decodeNewGame, decodePush, encodeAccount, encodeInvites, encodePartners, encodeReply, encodeSummaries } from './codec';
 import type { OnlineReply } from './codec';
 import type { Service } from './service';
 
@@ -55,6 +55,30 @@ export async function handleApi(request: Request, service: Service, maintenanceT
     const name = await service.rerollName(id);
     return name ? text(`name ${name}\n`) : text('error unknown\n', 404);
   }
+  if (method === 'POST' && path === 'push') {
+    const req = decodePush(raw);
+    if (!req || !(await service.setPush(id, req.token, req.lang))) return text('error invalid request\n', 400);
+    return text('ok\n');
+  }
+  if (method === 'POST' && path === 'push/off') {
+    const req = decodePush(raw);
+    if (!req) return text('error invalid request\n', 400);
+    await service.clearPush(id, req.token);
+    return text('ok\n');
+  }
+  if (method === 'GET' && path === 'partners') return text(encodePartners(await service.partners(id)));
+  if (method === 'DELETE' && parts.length === 2 && parts[0] === 'partners') {
+    await service.removePartner(id, parts[1]);
+    return text('ok\n');
+  }
+  if (method === 'GET' && path === 'invites') return text(encodeInvites(await service.invites(id)));
+  if (method === 'POST' && parts.length === 3 && parts[0] === 'invites') {
+    if (parts[2] === 'accept') return reply(await service.acceptInvite(id, parts[1]));
+    if (parts[2] === 'decline') {
+      await service.declineInvite(id, parts[1]);
+      return text('ok\n');
+    }
+  }
   if (method === 'GET' && path === 'games') return text(encodeSummaries(await service.list(id)));
   if (method === 'POST' && path === 'games') {
     const req = decodeNewGame(raw);
@@ -68,6 +92,10 @@ export async function handleApi(request: Request, service: Service, maintenanceT
         return reply(await service.start(id, parts[1]));
       case 'resign':
         return reply(await service.resign(id, parts[1]));
+      case 'invite': {
+        const r = await service.invite(id, parts[1], raw.trim().slice(0, 40));
+        return text(r.error ? `error ${r.error}\n` : 'ok\n');
+      }
       case 'turn': {
         const move = decodeMove(raw);
         return move ? reply(await service.move(id, parts[1], move)) : text('error invalid request\n', 400);

@@ -17,6 +17,8 @@ import {
   Rng,
   scores,
 } from './rules';
+import { NoPusher, pushText } from './push';
+import type { Pusher } from './push';
 import type { Game, Slot, Store, Stored } from './store';
 
 export const MAX_MISSES = 3;
@@ -89,7 +91,98 @@ export class Service {
     private rng: Rng,
     private mailer: Mailer = new NoMailer(),
     private testLogin: TestLogin | null = null,
+    private pusher: Pusher = new NoPusher(),
   ) {}
+
+  /** Laufende Benachrichtigungen; der Aufrufer wartet nach der Antwort darauf (`waitUntil`). */
+  private pending: Promise<void>[] = [];
+
+  async flush(): Promise<void> {
+    await Promise.all(this.pending);
+    this.pending = [];
+  }
+
+  private queuePush(accountId: string, kind: 'turn' | 'invite', name = '', data: Record<string, string> = {}): void {
+    this.pending.push(
+      (async () => {
+        try {
+          for (const t of await this.store.pushTokensOf(accountId)) {
+            const text = pushText(kind, t.lang, name);
+            const result = await this.pusher.send(t.token, { ...text, data: { kind, ...data } });
+            if (result === 'invalid') await this.store.dropPushToken(t.token);
+          }
+        } catch {
+          // Benachrichtigungen sind nur eine Zugabe: ein Fehler darf den Zug nicht beeinträchtigen.
+        }
+      })(),
+    );
+  }
+
+  // --- Benachrichtigungen und Partner ---
+
+  async setPush(accountId: string, token: string, lang: string): Promise<boolean> {
+    if (token.length < 20 || token.length > 4096 || !/^[\w:.\-]+$/.test(token)) return false;
+    await this.store.addPushToken(accountId, token, lang === 'en' ? 'en' : 'de', this.clock());
+    return true;
+  }
+
+  async clearPush(accountId: string, token: string): Promise<void> {
+    await this.store.removePushToken(accountId, token);
+  }
+
+  async partners(accountId: string) {
+    return this.store.partnersOf(accountId);
+  }
+
+  async removePartner(accountId: string, partnerId: string): Promise<void> {
+    await this.store.removePartners(accountId, partnerId);
+  }
+
+  /** Lädt einen gemerkten Partner in die eigene Lobby ein; er sieht die Einladung und kann ohne Code beitreten. */
+  async invite(accountId: string, gameId: string, partnerId: string): Promise<{ error: string | null }> {
+    if (!(await this.store.isPartner(accountId, partnerId))) return { error: 'forbidden' };
+    const me = await this.store.getAccount(accountId);
+    if (!me) return { error: 'unknown' };
+    const loaded = await this.store.loadGame(gameId);
+    const g = loaded?.game;
+    if (!g || g.creatorId !== accountId) return { error: 'forbidden' };
+    if (g.status !== 'LOBBY' || !g.slots.some((s) => this.isOpen(s))) return { error: 'notlobby' };
+    if (g.slots.some((s) => s.accountId === partnerId)) return { error: 'already' };
+    if (await this.store.hasInvite(gameId, partnerId)) return { error: null };
+    await this.store.putInvite(gameId, partnerId, accountId, this.clock());
+    this.queuePush(partnerId, 'invite', me.name, { game: gameId });
+    return { error: null };
+  }
+
+  /** Offene Einladungen; erledigte oder ungültige werden dabei aufgeräumt. */
+  async invites(accountId: string): Promise<Array<{ gameId: string; fromName: string; seats: number }>> {
+    const out: Array<{ gameId: string; fromName: string; seats: number }> = [];
+    for (const i of await this.store.invitesOf(accountId)) {
+      const stored = await this.store.loadGame(i.gameId);
+      const from = await this.store.getAccount(i.fromId);
+      const g = stored?.game;
+      if (!g || !from || g.status !== 'LOBBY' || !g.slots.some((s) => this.isOpen(s))) {
+        await this.store.deleteInvite(i.gameId, accountId);
+        continue;
+      }
+      out.push({ gameId: i.gameId, fromName: from.name, seats: g.slots.length });
+    }
+    return out;
+  }
+
+  async acceptInvite(accountId: string, gameId: string): Promise<OnlineReply> {
+    if (!(await this.store.hasInvite(gameId, accountId))) return fail('notfound', 'Keine Einladung');
+    const account = await this.store.getAccount(accountId);
+    if (!account) return fail('unknown');
+    if ((await this.activeCount(accountId)) >= MAX_ACTIVE_GAMES) return fail('limit', 'Zu viele laufende Partien');
+    const reply = await this.joinLobby(accountId, account.name, gameId);
+    await this.store.deleteInvite(gameId, accountId);
+    return reply;
+  }
+
+  async declineInvite(accountId: string, gameId: string): Promise<void> {
+    await this.store.deleteInvite(gameId, accountId);
+  }
 
   // --- Konten ---
 
@@ -299,45 +392,70 @@ export class Service {
     const found = await this.store.findLobbyByCode(code.trim().toUpperCase().slice(0, 16));
     if (!found) return fail('notfound', 'Kein offenes Spiel mit diesem Code');
     if ((await this.activeCount(accountId)) >= MAX_ACTIVE_GAMES) return fail('limit', 'Zu viele laufende Partien');
-    return this.transact(found.game.id, (g) => {
-      if (g.status !== 'LOBBY') return { reply: fail('notfound', 'Kein offenes Spiel mit diesem Code') };
-      if (g.slots.some((s) => s.accountId === accountId)) return { reply: this.ok(g, accountId) };
-      const slot = g.slots.find((s) => this.isOpen(s));
-      if (!slot) return { reply: fail('full', 'Das Spiel ist voll') };
-      slot.accountId = accountId;
-      slot.name = account.name;
-      if (!g.slots.some((s) => this.isOpen(s))) this.begin(g);
-      return { reply: this.ok(g, accountId) };
-    });
+    const reply = await this.joinLobby(accountId, account.name, found.game.id);
+    // Wer einem Spiel per Code beitritt, wird mit dem Ersteller zu gegenseitig gemerkten Partnern.
+    if (reply.error === null && found.game.creatorId !== accountId) {
+      await this.store.addPartners(found.game.creatorId, accountId, this.clock());
+    }
+    return reply;
+  }
+
+  private async joinLobby(accountId: string, name: string, gameId: string): Promise<OnlineReply> {
+    return this.transact(
+      gameId,
+      (g) => {
+        if (g.status !== 'LOBBY') return { reply: fail('notfound', 'Kein offenes Spiel') };
+        if (g.slots.some((s) => s.accountId === accountId)) return { reply: this.ok(g, accountId) };
+        const slot = g.slots.find((s) => this.isOpen(s));
+        if (!slot) return { reply: fail('full', 'Das Spiel ist voll') };
+        slot.accountId = accountId;
+        slot.name = name;
+        if (!g.slots.some((s) => this.isOpen(s))) this.begin(g);
+        return { reply: this.ok(g, accountId) };
+      },
+      accountId,
+    );
   }
 
   /** Der Ersteller startet früher; freie Plätze füllt eine KI. */
   async start(accountId: string, gameId: string): Promise<OnlineReply> {
-    return this.transact(gameId, (g) => {
-      if (g.creatorId !== accountId) return { reply: fail('forbidden', 'Nur der Ersteller startet') };
-      if (g.status !== 'LOBBY') return { reply: fail('notlobby') };
-      this.begin(g);
-      return { reply: this.ok(g, accountId) };
-    });
+    return this.transact(
+      gameId,
+      (g) => {
+        if (g.creatorId !== accountId) return { reply: fail('forbidden', 'Nur der Ersteller startet') };
+        if (g.status !== 'LOBBY') return { reply: fail('notlobby') };
+        this.begin(g);
+        return { reply: this.ok(g, accountId) };
+      },
+      accountId,
+    );
   }
 
   async view(accountId: string, gameId: string): Promise<OnlineReply> {
-    return this.transact(gameId, (g) => {
-      if (!g.slots.some((s) => s.accountId === accountId)) return { reply: fail('forbidden') };
-      this.sweep(g);
-      return { reply: this.ok(g, accountId) };
-    });
+    return this.transact(
+      gameId,
+      (g) => {
+        if (!g.slots.some((s) => s.accountId === accountId)) return { reply: fail('forbidden') };
+        this.sweep(g);
+        return { reply: this.ok(g, accountId) };
+      },
+      accountId,
+    );
   }
 
   async list(accountId: string): Promise<OnlineSummary[]> {
     const out: OnlineSummary[] = [];
     for (const s of await this.store.gamesOf(accountId)) {
       let g = s.game;
-      const swept = await this.transact(g.id, (x) => {
-        this.sweep(x);
-        g = x;
-        return { reply: fail('ok') };
-      });
+      const swept = await this.transact(
+        g.id,
+        (x) => {
+          this.sweep(x);
+          g = x;
+          return { reply: fail('ok') };
+        },
+        accountId,
+      );
       void swept;
       const seat = g.slots.findIndex((x) => x.accountId === accountId);
       if (seat < 0) continue;
@@ -384,15 +502,19 @@ export class Service {
       this.apply(g, next, event);
       this.advanceAi(g);
       return { reply: this.ok(g, accountId) };
-    });
+    }, accountId);
   }
 
   /** Aufgeben oder die Lobby verlassen. */
   async resign(accountId: string, gameId: string): Promise<OnlineReply> {
-    return this.transact(gameId, (g) => {
-      if (!g.slots.some((s) => s.accountId === accountId)) return { reply: fail('forbidden') };
-      return this.leave(accountId, g);
-    });
+    return this.transact(
+      gameId,
+      (g) => {
+        if (!g.slots.some((s) => s.accountId === accountId)) return { reply: fail('forbidden') };
+        return this.leave(accountId, g);
+      },
+      accountId,
+    );
   }
 
   /** Täglicher Wartungsaufruf: alte Partien löschen und Konten entfernen, die lange nicht genutzt wurden. */
@@ -422,21 +544,33 @@ export class Service {
   }
 
   /** Lädt die Partie, wendet [fn] an und speichert bei Änderung; bei gleichzeitiger Änderung wird wiederholt. */
-  private async transact(id: string, fn: (g: Game) => Outcome): Promise<OnlineReply> {
+  private async transact(id: string, fn: (g: Game) => Outcome, actor?: string): Promise<OnlineReply> {
     for (let attempt = 0; attempt < RETRIES; attempt++) {
       const stored: Stored | null = await this.store.loadGame(id);
       if (!stored) return fail('notfound');
       const before = JSON.stringify(stored.game);
       const game = stored.game;
+      const prev = { turn: game.turn, status: game.status };
       const outcome = fn(game);
       if (outcome.remove) {
         await this.store.deleteGame(id);
         return outcome.reply;
       }
       if (JSON.stringify(game) === before) return outcome.reply;
-      if (await this.store.saveGame(game, stored.version)) return outcome.reply;
+      if (await this.store.saveGame(game, stored.version)) {
+        this.notifyTurn(game, prev, actor);
+        return outcome.reply;
+      }
     }
     return fail('busy', 'Bitte noch einmal versuchen');
+  }
+
+  /** Ist nach einer Änderung ein anderer Mensch an der Reihe, bekommt er (falls eingeschaltet) eine Benachrichtigung. */
+  private notifyTurn(g: Game, prev: { turn: number; status: string }, actor?: string): void {
+    if (g.status !== 'RUNNING' || !g.state) return;
+    if (g.turn === prev.turn && prev.status === 'RUNNING') return;
+    const next = g.slots[g.state.current]?.accountId;
+    if (next && next !== actor) this.queuePush(next, 'turn', '', { game: g.id });
   }
 
   private begin(g: Game): void {
