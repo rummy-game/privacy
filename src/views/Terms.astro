@@ -37,7 +37,7 @@ const { lang } = Astro.props as { lang: Lang };
     <ul>
       <li><strong>Partner und Einladungen:</strong> Wer einem Spiel per Code beitritt, wird mit dem Ersteller gegenseitig als Partner gemerkt; mit Partnern kannst du Partien ohne Code beginnen. Du kannst Partner jederzeit entfernen.</li>
       <li><strong>Gesamtstand:</strong> Zu Mitspielenden, gegen die du Partien beendet hast, zeigt die App dir den Gesamtstand (Siege, Niederlagen, Remis). Er hat keine Bedeutung außerhalb der App.</li>
-      <li><strong>Zugfrist:</strong> Wer eine Partie erstellt, wählt eine Zeit pro Zug oder keine. Gilt eine Zeit, kann der Ersteller festlegen, ob sie pausiert, solange der Spieler am Zug die App verlassen hat (Standard), oder weiterläuft. Zu zweit wird bei abgelaufener Zeit nur gezogen, es übernimmt kein Computer; ab drei Plätzen kann ein Computer einspringen.</li>
+      <li><strong>Zugfrist:</strong> Wer eine Partie erstellt, wählt eine Zeit pro Zug oder keine. Gilt eine Zeit, kann der Ersteller festlegen, ob sie pausiert, solange der Spieler am Zug nicht in der Partie ist, weil er die App oder die Partie verlassen hat (Standard), oder weiterläuft. Zu zweit wird bei abgelaufener Zeit nur gezogen, es übernimmt kein Computer; ab drei Plätzen kann ein Computer einspringen.</li>
       <li><strong>Benachrichtigungen:</strong> Push-Nachrichten („Du bist dran“, Einladung) gibt es nur, wenn du sie einschaltest; sie sind standardmäßig aus und lassen sich jederzeit abschalten.</li>
     </ul>
 
@@ -88,7 +88,7 @@ const { lang } = Astro.props as { lang: Lang };
     <ul>
       <li><strong>Partners and invitations:</strong> Anyone who joins a game with a code and the creator of that game are saved as partners of each other; with partners you can start games without a code. You can remove partners at any time.</li>
       <li><strong>Overall record:</strong> For players against whom you have finished games the app shows you the overall record (wins, losses, draws). It has no meaning outside the app.</li>
-      <li><strong>Turn clock:</strong> Whoever creates a game chooses a time per turn or none. If a time applies, the creator can decide whether it pauses while the player to move has left the app (default) or keeps running. In a two-player game only a draw is made when the time runs out and no computer takes over; with three or more seats a computer may step in.</li>
+      <li><strong>Turn clock:</strong> Whoever creates a game chooses a time per turn or none. If a time applies, the creator can decide whether it pauses while the player to move is not in the game, having left the app or the game (default), or keeps running. In a two-player game only a draw is made when the time runs out and no computer takes over; with three or more seats a computer may step in.</li>
       <li><strong>Notifications:</strong> Push messages (“Your turn”, invitation) exist only if you turn them on; they are off by default and can be turned off at any time.</li>
     </ul>
 

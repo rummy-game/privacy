@@ -44,7 +44,7 @@ const { lang } = Astro.props as { lang: Lang };
       <li>Konto: E-Mail-Adresse, Kennung, Prüfwerte der Geräteschlüssel, Spielername, Zeitpunkt der Anlage und der letzten Nutzung.</li>
       <li>Bestätigungscodes: nur ein Prüfwert des Codes, die Adresse, Zeitpunkte und die Zahl der Versuche, höchstens bis 24 Stunden nach dem Versand. Den Code selbst erhält nur dein Postfach.</li>
       <li>Partien: Einladungscode, Regeln, Plätze mit den Spielernamen, der gesamte Spielstand (Ablagen, Tisch, Vorrat, Zugnummer, letzte Aktion, Zugfrist) und das Ergebnis. Diese Daten braucht der Dienst, um die Züge zu prüfen und allen Mitspielenden ihre Sicht zu zeigen.</li>
-      <li>Anwesenheit: Meldet die App, ob sie im Vordergrund ist, speichert der Dienst das nur als Merker am Platz in der laufenden Partie (nur für die Zugfrist-Pause, siehe Nutzungsbedingungen); er verschwindet mit der Partie.</li>
+      <li>Anwesenheit: Meldet die App, ob du die Partie geöffnet hast und die App im Vordergrund ist, speichert der Dienst das nur als Merker am Platz in der laufenden Partie (nur für die Zugfrist-Pause, siehe Nutzungsbedingungen); er verschwindet mit der Partie.</li>
       <li>Partner, Einladungen, Blockierliste und Gesamtstand: je Konto die Kennungen der betroffenen Konten und die Zahl der Siege, Niederlagen und Remis gegen einzelne Mitspieler (siehe oben).</li>
       <li>Meldungen: Konto-Kennungen, Name des Gemeldeten, fester Grund, Partie-Kennung und Zeitpunkt (siehe oben).</li>
       <li>Push-Kennzeichen: nur nach dem Einschalten der Benachrichtigungen, mit der App-Sprache (siehe oben).</li>
@@ -112,7 +112,7 @@ const { lang } = Astro.props as { lang: Lang };
       <li>Account: email address, ID, check values of the device keys, player name, time of creation and of last use.</li>
       <li>Confirmation codes: only a check value of the code, the address, times and the number of attempts, for at most 24 hours after sending. Only your mailbox receives the code itself.</li>
       <li>Games: invitation code, rules, seats with player names, the full game state (racks, table, pool, turn number, last action, turn deadline) and the result. The service needs this to validate moves and to show every player their own view.</li>
-      <li>Presence: when the app reports whether it is in the foreground, the service stores this only as a flag on the seat in the running game (solely for the turn-clock pause, see the terms of use); it disappears with the game.</li>
+      <li>Presence: when the app reports whether you have the game open and the app is in the foreground, the service stores this only as a flag on the seat in the running game (solely for the turn-clock pause, see the terms of use); it disappears with the game.</li>
       <li>Partners, invitations, block list and overall record: per account the IDs of the accounts concerned and the number of wins, losses and draws against individual players (see above).</li>
       <li>Reports: account IDs, the reported player’s name, fixed reason, game ID and time (see above).</li>
       <li>Push identifier: only after you turn notifications on, together with the app language (see above).</li>
