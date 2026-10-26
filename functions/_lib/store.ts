@@ -77,6 +77,13 @@ export interface ReportEntry {
   createdAt: number;
 }
 
+export interface RecordEntry {
+  opponentId: string;
+  wins: number;
+  losses: number;
+  draws: number;
+}
+
 export interface Stored {
   game: Game;
   version: number;
@@ -144,6 +151,10 @@ export interface Store {
   removeBan(emailHash: string): Promise<void>;
   isBanned(emailHash: string): Promise<boolean>;
 
+  /** Gesamtstand gegen einen Mitspieler: ein Ausgang mehr aus Sicht von [accountId]. */
+  addRecord(accountId: string, opponentId: string, outcome: 'win' | 'loss' | 'draw'): Promise<void>;
+  recordsOf(accountId: string): Promise<RecordEntry[]>;
+
   /** Zählt einen Zugriff im Fenster [window] des Schlüssels [key] und liefert den neuen Stand. */
   hit(key: string, window: number): Promise<number>;
   /** Löscht Zähler, deren Fenster vor [before] (Fensternummer in Millisekunden, grob) liegt. */
@@ -178,6 +189,7 @@ export class MemoryStore implements Store {
   reportList: ReportEntry[] = [];
   bans = new Set<string>();
   limits = new Map<string, number>();
+  recordMap = new Map<string, RecordEntry>();
 
   async createAccount(a: Account) {
     if (this.accounts.has(a.id) || [...this.accounts.values()].some((x) => x.name === a.name)) return false;
@@ -238,7 +250,19 @@ export class MemoryStore implements Store {
     for (const set of this.partners.values()) set.delete(id);
     this.blocks.delete(id);
     for (const set of this.blocks.values()) set.delete(id);
+    for (const k of [...this.recordMap.keys()]) if (k.startsWith(`${id}>`) || k.endsWith(`>${id}`)) this.recordMap.delete(k);
     this.invites = this.invites.filter((i) => i.to !== id && i.from !== id);
+  }
+  async addRecord(accountId: string, opponentId: string, outcome: 'win' | 'loss' | 'draw') {
+    const k = `${accountId}>${opponentId}`;
+    const r = this.recordMap.get(k) ?? { opponentId, wins: 0, losses: 0, draws: 0 };
+    if (outcome === 'win') r.wins++;
+    else if (outcome === 'loss') r.losses++;
+    else r.draws++;
+    this.recordMap.set(k, r);
+  }
+  async recordsOf(accountId: string) {
+    return [...this.recordMap.entries()].filter(([k]) => k.startsWith(`${accountId}>`)).map(([, v]) => ({ ...v }));
   }
   async hit(key: string, window: number) {
     const k = `${key}#${window}`;
@@ -451,6 +475,20 @@ export class D1Store implements Store {
     const r = await this.db.prepare('SELECT id FROM accounts WHERE last_seen < ? LIMIT 100').bind(cutoff).all<{ id: string }>();
     return r.results.map((x) => x.id);
   }
+  async addRecord(accountId: string, opponentId: string, outcome: 'win' | 'loss' | 'draw') {
+    const col = outcome === 'win' ? 'wins' : outcome === 'loss' ? 'losses' : 'draws';
+    await this.db
+      .prepare(`INSERT INTO records (account_id, opponent_id, ${col}) VALUES (?, ?, 1) ON CONFLICT(account_id, opponent_id) DO UPDATE SET ${col} = ${col} + 1`)
+      .bind(accountId, opponentId)
+      .run();
+  }
+  async recordsOf(accountId: string) {
+    const r = await this.db
+      .prepare('SELECT opponent_id, wins, losses, draws FROM records WHERE account_id = ?')
+      .bind(accountId)
+      .all<{ opponent_id: string; wins: number; losses: number; draws: number }>();
+    return r.results.map((x) => ({ opponentId: x.opponent_id, wins: x.wins, losses: x.losses, draws: x.draws }));
+  }
   async hit(key: string, window: number) {
     await this.db.prepare('INSERT INTO rate_limits (key, window, n) VALUES (?, ?, 1) ON CONFLICT(key, window) DO UPDATE SET n = n + 1').bind(key, window).run();
     const r = await this.db.prepare('SELECT n FROM rate_limits WHERE key = ? AND window = ?').bind(key, window).first<{ n: number }>();
@@ -588,6 +626,7 @@ export class D1Store implements Store {
       this.db.prepare('DELETE FROM push_tokens WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM partners WHERE account_id = ? OR partner_id = ?').bind(id, id),
       this.db.prepare('DELETE FROM blocks WHERE account_id = ? OR blocked_id = ?').bind(id, id),
+      this.db.prepare('DELETE FROM records WHERE account_id = ? OR opponent_id = ?').bind(id, id),
       this.db.prepare('DELETE FROM invites WHERE to_account = ? OR from_account = ?').bind(id, id),
       this.db.prepare('DELETE FROM game_players WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM account_secrets WHERE account_id = ?').bind(id),

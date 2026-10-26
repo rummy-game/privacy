@@ -1,6 +1,6 @@
 // HTTP-Schicht über dem Dienst: dieselben Endpunkte wie der Kotlin-Server (`HttpApi.kt`).
 
-import { decodeAuthStart, decodeAuthVerify, decodeMove, decodeNewGame, decodePush, decodeSeatAction, encodeAccount, encodeBlocks, encodeInvites, encodePartners, encodeReply, encodeSummaries } from './codec';
+import { decodeAuthStart, decodeAuthVerify, decodeMove, decodeNewGame, decodePush, decodeSeatAction, encodeAccount, encodeBlocks, encodeInvites, encodePartners, encodeRecords, encodeReply, encodeSummaries } from './codec';
 import type { OnlineReply } from './codec';
 import type { Service } from './service';
 
@@ -120,6 +120,7 @@ export async function handleApi(request: Request, service: Service, maintenanceT
     await service.unblock(id, parts[1]);
     return text('ok\n');
   }
+  if (method === 'GET' && path === 'records') return text(encodeRecords(await service.records(id)));
   if (method === 'GET' && path === 'partners') return text(encodePartners(await service.partners(id)));
   if (method === 'DELETE' && parts.length === 2 && parts[0] === 'partners') {
     await service.removePartner(id, parts[1]);

@@ -711,10 +711,35 @@ export class Service {
       if (JSON.stringify(game) === before) return outcome.reply;
       if (await this.store.saveGame(game, stored.version)) {
         this.notifyTurn(game, prev, actor);
+        if (game.status === 'FINISHED' && prev.status !== 'FINISHED') await this.recordFinish(game);
         return outcome.reply;
       }
     }
     return fail('busy', 'Bitte noch einmal versuchen');
+  }
+
+  /**
+   * Gesamtstand gegen einzelne Mitspieler: Am Ende einer Partie zählt für jedes Paar von Menschen, wer gegen wen gewonnen
+   * hat (Remis, wenn niemand gewonnen hat). Zwei Verlierer zählen untereinander nicht; ausgestiegene Spieler (durch den
+   * Computer ersetzt) sind nicht mehr dabei.
+   */
+  private async recordFinish(g: Game): Promise<void> {
+    if (!g.state) return;
+    const winner = g.state.winner;
+    const humans = g.slots.map((s, seat) => ({ id: s.accountId, seat })).filter((h): h is { id: string; seat: number } => h.id !== null);
+    for (const a of humans) {
+      for (const b of humans) {
+        if (a.id === b.id) continue;
+        if (winner === null) await this.store.addRecord(a.id, b.id, 'draw');
+        else if (winner === a.seat) await this.store.addRecord(a.id, b.id, 'win');
+        else if (winner === b.seat) await this.store.addRecord(a.id, b.id, 'loss');
+      }
+    }
+  }
+
+  /** Gesamtstand gegen alle Mitspieler, mit denen schon eine Partie zu Ende ging. */
+  async records(accountId: string) {
+    return this.store.recordsOf(accountId);
   }
 
   /** Ist nach einer Änderung ein anderer Mensch an der Reihe, bekommt er (falls eingeschaltet) eine Benachrichtigung. */

@@ -136,3 +136,33 @@ describe('Melden und Sperren', () => {
     expect(await service.adminReports()).toEqual([]);
   });
 });
+
+describe('Gesamtstand gegen einzelne Mitspieler', () => {
+  async function finish(winnerSeat: number | null) {
+    const { a, b, game, service, store } = await pair();
+    const g = (await store.loadGame(game))!.game;
+    g.state = { ...g.state!, finished: true, winner: winnerSeat };
+    g.status = 'FINISHED';
+    await (service as unknown as { recordFinish(g: unknown): Promise<void> }).recordFinish(g);
+    return { a, b, g, service };
+  }
+
+  it('Sieg und Niederlage werden für beide Seiten gezählt', async () => {
+    const { a, b, g, service } = await finish(0);
+    const winnerId = g.slots[0].accountId === a.id ? a.id : b.id;
+    const loserId = winnerId === a.id ? b.id : a.id;
+    expect(await service.records(winnerId)).toEqual([{ opponentId: loserId, wins: 1, losses: 0, draws: 0 }]);
+    expect(await service.records(loserId)).toEqual([{ opponentId: winnerId, wins: 0, losses: 1, draws: 0 }]);
+  });
+
+  it('ohne Sieger zählt Remis, und der Stand wächst mit jeder Partie', async () => {
+    const { a, b, service } = await finish(null);
+    expect(await service.records(a.id)).toEqual([{ opponentId: b.id, wins: 0, losses: 0, draws: 1 }]);
+  });
+
+  it('beim Löschen eines Kontos verschwindet der Stand', async () => {
+    const { a, b, service } = await finish(1);
+    await service.deleteAccount(b.id);
+    expect(await service.records(a.id)).toEqual([]);
+  });
+});

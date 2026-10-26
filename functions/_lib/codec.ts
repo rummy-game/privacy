@@ -137,6 +137,11 @@ export function encodePartners(list: Array<{ id: string; name: string }>): strin
   return ['RUMMY-PARTNERS 1', ...list.map((p) => `partner ${p.id} ${clean(p.name)}`), 'end'].join('\n') + '\n';
 }
 
+/** `record <Gegner> <Siege> <Niederlagen> <Remis>` je Zeile. */
+export function encodeRecords(list: Array<{ opponentId: string; wins: number; losses: number; draws: number }>): string {
+  return ['RUMMY-RECORDS 1', ...list.map((r) => `record ${r.opponentId} ${r.wins} ${r.losses} ${r.draws}`), 'end'].join('\n') + '\n';
+}
+
 /** `blocked <id> <name>` je Zeile. */
 export function encodeBlocks(list: Array<{ id: string; name: string }>): string {
   return ['RUMMY-BLOCKS 1', ...list.map((p) => `blocked ${p.id} ${clean(p.name)}`), 'end'].join('\n') + '\n';
