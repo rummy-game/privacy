@@ -36,6 +36,9 @@ export interface OnlineView {
   rules: Rules;
   limitSeconds: number;
   deadlineAt: number;
+  pauseWhenAway: boolean;
+  /** Seit wann die Frist gerade ruht (Epoch-Millisekunden), 0 = läuft. */
+  pausedAt: number;
   seats: OnlineSeat[];
   poolSize: number;
   table: TileId[][];
@@ -72,6 +75,8 @@ export interface NewGameRequest {
   rules: Rules;
   fillLevel: AiLevel;
   limitSeconds: number;
+  /** Die Zugfrist ruht, solange der Spieler am Zug die App verlassen hat. */
+  pauseWhenAway: boolean;
 }
 
 export type AuthPurpose = 'login' | 'delete';
@@ -104,7 +109,7 @@ export function encodeView(v: OnlineView): string {
   lines.push(`me ${v.mySeat} ${flag(v.creator)}`);
   lines.push(`current ${v.current}`);
   lines.push(`rules ${v.rules.jokers} ${v.rules.handSize} ${v.rules.initialMeldMin} ${flag(v.rules.randomStart)}`);
-  lines.push(`limit ${v.limitSeconds} ${v.deadlineAt}`);
+  lines.push(`limit ${v.limitSeconds} ${v.deadlineAt} ${flag(v.pauseWhenAway)} ${v.pausedAt}`);
   for (const s of v.seats) lines.push(`seat ${s.ai ?? 'HUMAN'} ${flag(s.open)} ${flag(s.mine)} ${s.tileCount} ${clean(s.name)}`);
   lines.push(`pool ${v.poolSize}`);
   for (const m of v.table) lines.push(`table ${ids(m)}`);
@@ -225,7 +230,8 @@ export function decodeMove(text: string): OnlineMove | null {
 /** `newgame <Plätze> <Joker> <Startplättchen> <Mindestpunkte> <Zufallsstart> <KI-Stufe> <Frist>` */
 export function decodeNewGame(text: string): NewGameRequest | null {
   const p = text.trim().split(' ');
-  if (p.length !== 8 || p[0] !== 'newgame') return null;
+  // neuntes Feld (Frist ruht bei Abwesenheit, 0/1) ist neu; ältere Apps senden acht Felder: dort gilt „ruht“
+  if ((p.length !== 8 && p.length !== 9) || p[0] !== 'newgame') return null;
   const n = p.slice(1, 6).map(Number);
   const limit = Number(p[7]);
   if (n.some((x) => !Number.isInteger(x)) || !Number.isInteger(limit)) return null;
@@ -234,7 +240,7 @@ export function decodeNewGame(text: string): NewGameRequest | null {
   const [seats, jokers, handSize, initialMeldMin, randomStart] = n;
   // Frist 0 = unbegrenzt
   if (seats < 2 || seats > 4 || (limit !== 0 && (limit < MIN_LIMIT_SECONDS || limit > MAX_LIMIT_SECONDS))) return null;
-  return { seats, rules: { jokers, handSize, initialMeldMin, randomStart: randomStart === 1 }, fillLevel: level, limitSeconds: limit };
+  return { seats, rules: { jokers, handSize, initialMeldMin, randomStart: randomStart === 1 }, fillLevel: level, limitSeconds: limit, pauseWhenAway: p[8] !== '0' };
 }
 
 function keyValues(text: string): Map<string, string> | null {

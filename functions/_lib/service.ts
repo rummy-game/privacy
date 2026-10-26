@@ -520,6 +520,8 @@ export class Service {
         creatorId: accountId,
         rules: { ...r },
         limitSeconds: req.limitSeconds,
+        pauseWhenAway: req.pauseWhenAway,
+        pausedAt: 0,
         fillLevel: req.fillLevel,
         slots,
         status: 'LOBBY',
@@ -808,6 +810,47 @@ export class Service {
 
   private scheduleDeadline(g: Game): void {
     g.deadlineAt = g.limitSeconds > 0 ? this.clock() + g.limitSeconds * 1000 : 0;
+    g.pausedAt = 0;
+    this.syncPause(g);
+  }
+
+  /**
+   * Fristpause: Hat der Spieler am Zug die App verlassen und gilt die Regel der Partie, ruht die Frist ab diesem
+   * Zeitpunkt; kommt er zurück, verschiebt sich das Fristende um die Dauer der Pause. Fehlt die Meldung (App beendet,
+   * kein Netz), läuft die Frist weiter.
+   */
+  private syncPause(g: Game): void {
+    if (g.status !== 'RUNNING' || !g.state) {
+      g.pausedAt = 0;
+      return;
+    }
+    if (!g.pauseWhenAway || g.deadlineAt === 0) return;
+    const slot = g.slots[g.state.current];
+    const shouldPause = slot.accountId !== null && slot.ai === null && slot.away === true;
+    const now = this.clock();
+    if (shouldPause && !g.pausedAt) g.pausedAt = now;
+    else if (!shouldPause && g.pausedAt) {
+      g.deadlineAt += now - g.pausedAt;
+      g.pausedAt = 0;
+    }
+  }
+
+  /** Die App meldet, ob sie im Vordergrund ist (`away = false`) oder nicht. */
+  async setAway(accountId: string, gameId: string, away: boolean): Promise<OnlineReply> {
+    return this.transact(
+      gameId,
+      (g) => {
+        const slot = g.slots.find((s) => s.accountId === accountId);
+        if (!slot) return { reply: fail('forbidden') };
+        this.sweep(g);
+        if (Boolean(slot.away) !== away) {
+          slot.away = away;
+          this.syncPause(g);
+        }
+        return { reply: this.ok(g, accountId) };
+      },
+      accountId,
+    );
   }
 
   /**
@@ -816,7 +859,7 @@ export class Service {
    */
   private sweep(g: Game): void {
     let guard = 0;
-    while (g.status === 'RUNNING' && g.deadlineAt > 0 && this.clock() > g.deadlineAt && g.state && guard++ < 50) {
+    while (g.status === 'RUNNING' && g.deadlineAt > 0 && !g.pausedAt && this.clock() > g.deadlineAt && g.state && guard++ < 50) {
       const state = g.state;
       const seat = state.current;
       const slot = g.slots[seat];
@@ -899,6 +942,8 @@ export class Service {
       current: state?.current ?? 0,
       rules: g.rules,
       limitSeconds: g.limitSeconds,
+      pauseWhenAway: g.pauseWhenAway ?? false,
+      pausedAt: g.pausedAt ?? 0,
       deadlineAt: g.deadlineAt,
       seats: g.slots.map((s, i) => ({
         name: s.name,

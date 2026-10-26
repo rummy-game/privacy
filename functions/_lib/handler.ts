@@ -147,6 +147,10 @@ export async function handleApi(request: Request, service: Service, maintenanceT
         return reply(await service.start(id, parts[1]));
       case 'resign':
         return reply(await service.resign(id, parts[1]));
+      case 'presence': {
+        const m = /^away (0|1)$/m.exec(raw.replace(/\r/g, ''));
+        return m ? reply(await service.setAway(id, parts[1], m[1] === '1')) : text('error invalid request\n', 400);
+      }
       case 'block':
       case 'report': {
         const act = decodeSeatAction(raw);

@@ -7,6 +7,8 @@ export interface Slot {
   name: string;
   ai: AiLevel | null;
   misses: number;
+  /** Das Konto hat die App verlassen (nur Hinweis für die Fristpause). */
+  away?: boolean;
 }
 
 export interface Game {
@@ -26,6 +28,10 @@ export interface Game {
   createdAt: number;
   /** Zeitpunkt der letzten Änderung; fehlt bei älteren Partien. */
   touchedAt?: number;
+  /** Die Zugfrist ruht, solange der Spieler am Zug die App verlassen hat; fehlt bei älteren Partien (dort läuft sie weiter). */
+  pauseWhenAway?: boolean;
+  /** Seit wann die Frist gerade ruht, 0 = läuft. */
+  pausedAt?: number;
 }
 
 export interface Account {

@@ -23,18 +23,19 @@ function setup(seed = 7) {
   return { clock, store, service };
 }
 
-const req = (seats = 2, limit = 3600, level: 'BEGINNER' | 'MEDIUM' = 'BEGINNER', rules = defaultRules()) => ({
+const req = (seats = 2, limit = 3600, level: 'BEGINNER' | 'MEDIUM' = 'BEGINNER', rules = defaultRules(), pauseWhenAway = true) => ({
   seats,
   rules,
   fillLevel: level,
   limitSeconds: limit,
+  pauseWhenAway,
 });
 
-async function twoPlayers(limit = 3600, rules = defaultRules()) {
+async function twoPlayers(limit = 3600, rules = defaultRules(), pauseWhenAway = true) {
   const ctx = setup();
   const a = (await ctx.service.createAccount())!;
   const b = (await ctx.service.createAccount())!;
-  const created = await ctx.service.createGame(a.id, req(2, limit, 'BEGINNER', rules));
+  const created = await ctx.service.createGame(a.id, req(2, limit, 'BEGINNER', rules, pauseWhenAway));
   const joined = await ctx.service.join(b.id, created.view!.code);
   expect(joined.error).toBeNull();
   expect(joined.view!.status).toBe('RUNNING');
@@ -220,6 +221,50 @@ describe('Partien', () => {
     clock.now += 2 * 24 * 3600 * 1000;
     await service.maintenance();
     expect(await store.loadGame(game)).toBeNull();
+  });
+
+  it('Fristpause: Verlässt der Spieler am Zug die App, ruht die Frist bis zur Rückkehr und verschiebt sich dann', async () => {
+    const { service, clock, a, b, game } = await twoPlayers(60);
+    const [slow] = await turnOwner(service, a, b, game);
+    const before = (await viewOf(service, slow.id, game)).deadlineAt;
+    await service.setAway(slow.id, game, true);
+    clock.now += 600_000; // zehn Minuten weg
+    const paused = await viewOf(service, slow.id, game);
+    expect(paused.rack).toHaveLength(14); // nichts automatisch gezogen
+    expect(paused.pausedAt).toBeGreaterThan(0);
+    expect(paused.pauseWhenAway).toBe(true);
+    await service.setAway(slow.id, game, false);
+    const back = await viewOf(service, slow.id, game);
+    expect(back.pausedAt).toBe(0);
+    expect(back.deadlineAt).toBe(before + 600_000);
+    // danach läuft die Frist wieder ganz normal ab
+    clock.now += 61_000 + 0;
+    clock.now = back.deadlineAt + 1000;
+    expect((await viewOf(service, slow.id, game)).rack).toHaveLength(15);
+  });
+
+  it('ohne die Regel läuft die Frist auch bei Abwesenheit weiter', async () => {
+    const { service, clock, a, b, game } = await twoPlayers(60, defaultRules(), false);
+    const [slow] = await turnOwner(service, a, b, game);
+    await service.setAway(slow.id, game, true);
+    clock.now += 61_000;
+    expect((await viewOf(service, slow.id, game)).rack).toHaveLength(15);
+  });
+
+  it('Kommt der Zug an einen abwesenden Spieler, beginnt die Frist erst mit seiner Rückkehr', async () => {
+    const { service, clock, a, b, game } = await twoPlayers(60);
+    const [first, second] = await turnOwner(service, a, b, game);
+    await service.setAway(second.id, game, true);
+    const v = await viewOf(service, first.id, game);
+    await service.move(first.id, game, { turn: v.turn, table: null });
+    const afterMove = await viewOf(service, first.id, game);
+    expect(afterMove.pausedAt).toBeGreaterThan(0);
+    clock.now += 3_600_000;
+    expect((await viewOf(service, second.id, game)).rack).toHaveLength(14);
+    await service.setAway(second.id, game, false);
+    const resumed = await viewOf(service, second.id, game);
+    expect(resumed.pausedAt).toBe(0);
+    expect(resumed.deadlineAt - clock.now).toBeGreaterThan(55_000);
   });
 
   it('Ersteller startet mit KI, andere nicht; Code ist groß/klein egal', async () => {
