@@ -19,9 +19,11 @@ import {
 } from './rules';
 import { NoPusher, pushText } from './push';
 import type { Pusher } from './push';
-import type { Game, Slot, Store, Stored } from './store';
+import type { Game, ReportEntry, Slot, Store, Stored } from './store';
 
 export const MAX_MISSES = 3;
+export const MAX_REPORTS_PER_DAY = 20;
+const REPORT_KEEP_MS = 90 * 24 * 3600 * 1000;
 export const MAX_ACTIVE_GAMES = 10;
 export const MAX_ACCOUNTS = 100_000;
 export const FINISHED_KEEP_MS = 30 * 24 * 3600 * 1000;
@@ -102,6 +104,9 @@ export class Service {
     private pusher: Pusher = new NoPusher(),
   ) {}
 
+  /** Adresse des Betreibers für Meldungen (leer = keine Mail; die Meldungen bleiben abrufbar). */
+  reportTo = '';
+
   /** Laufende Benachrichtigungen; der Aufrufer wartet nach der Antwort darauf (`waitUntil`). */
   private pending: Promise<void>[] = [];
 
@@ -138,6 +143,95 @@ export class Service {
     await this.store.removePushToken(accountId, token);
   }
 
+  // --- Blockieren, Melden, Sperren ---
+
+  private async isBannedEmail(email: string): Promise<boolean> {
+    return this.store.isBanned(await sha256(`ban|${email}`));
+  }
+
+  /** Sitzt in der Partie ein Mensch, mit dem [accountId] gegenseitig gesperrt ist? */
+  private async blockedInGame(accountId: string, g: Game): Promise<boolean> {
+    for (const s of g.slots) {
+      if (s.accountId && s.accountId !== accountId && (await this.store.isBlockedEither(accountId, s.accountId))) return true;
+    }
+    return false;
+  }
+
+  async blocks(accountId: string) {
+    return this.store.blocksOf(accountId);
+  }
+
+  async block(accountId: string, targetId: string): Promise<{ error: string | null }> {
+    if (targetId === accountId) return { error: 'invalid' };
+    if (!(await this.store.getAccount(targetId))) return { error: 'notfound' };
+    await this.store.addBlock(accountId, targetId, this.clock());
+    await this.store.removePartners(accountId, targetId);
+    for (const [owner, other] of [[accountId, targetId], [targetId, accountId]]) {
+      for (const i of await this.store.invitesOf(owner)) if (i.fromId === other) await this.store.deleteInvite(i.gameId, owner);
+    }
+    return { error: null };
+  }
+
+  async unblock(accountId: string, targetId: string): Promise<void> {
+    await this.store.removeBlock(accountId, targetId);
+  }
+
+  /** Der Mitspieler auf Platz [seat] der eigenen Partie (nur Menschen, nicht man selbst). */
+  private async seatTarget(accountId: string, gameId: string, seat: number): Promise<{ id: string; name: string } | { error: string }> {
+    const stored = await this.store.loadGame(gameId);
+    const g = stored?.game;
+    if (!g || !g.slots.some((s) => s.accountId === accountId)) return { error: 'forbidden' };
+    const slot = g.slots[seat];
+    if (!slot || !slot.accountId || slot.accountId === accountId) return { error: 'invalid' };
+    return { id: slot.accountId, name: slot.name };
+  }
+
+  async blockSeat(accountId: string, gameId: string, seat: number): Promise<{ error: string | null }> {
+    const t = await this.seatTarget(accountId, gameId, seat);
+    return 'error' in t ? t : this.block(accountId, t.id);
+  }
+
+  /** Meldung an den Betreiber: nur ein Grund aus einer festen Liste, kein Freitext. Höchstens 20 Meldungen je Konto und Tag. */
+  async report(accountId: string, gameId: string, seat: number, reason: string): Promise<{ error: string | null }> {
+    if (!['name', 'behavior', 'other'].includes(reason)) return { error: 'invalid' };
+    const t = await this.seatTarget(accountId, gameId, seat);
+    if ('error' in t) return t;
+    const now = this.clock();
+    if ((await this.store.countReportsBy(accountId, now - 24 * HOUR_MS)) >= MAX_REPORTS_PER_DAY) return { error: 'throttled' };
+    await this.store.addReport({ reporterId: accountId, reportedId: t.id, reportedName: t.name, reason, gameId, createdAt: now });
+    if (this.reportTo) {
+      const text = `Meldung zu „${t.name}“ (Konto ${t.id}), Grund: ${reason}, Partie ${gameId}.`;
+      this.pending.push(this.mailer.send(this.reportTo, 'Rummy: Meldung', text).then(() => undefined, () => undefined));
+    }
+    return { error: null };
+  }
+
+  /** Für den Betreiber: die neuesten Meldungen mit der Zahl der Meldungen je Konto. */
+  async adminReports(): Promise<Array<ReportEntry & { count: number }>> {
+    const list = await this.store.reports(100);
+    return list.map((r) => ({ ...r, count: list.filter((x) => x.reportedId === r.reportedId).length }));
+  }
+
+  /** Sperrt ein Konto: Daten werden wie beim Löschen entfernt, die Adresse (nur als Prüfwert) kann sich nicht neu anmelden. */
+  async adminBan(accountId: string, reason: string): Promise<boolean> {
+    const account = await this.store.getAccount(accountId);
+    if (!account) return false;
+    if (account.email) await this.store.addBan(await sha256(`ban|${account.email}`), reason.slice(0, 40), this.clock());
+    await this.deleteAccount(accountId);
+    return true;
+  }
+
+  async adminUnban(rawEmail: string): Promise<boolean> {
+    const email = normalizeEmail(rawEmail);
+    if (!email) return false;
+    await this.store.removeBan(await sha256(`ban|${email}`));
+    return true;
+  }
+
+  async adminDismiss(reportId: number): Promise<void> {
+    await this.store.deleteReport(reportId);
+  }
+
   async partners(accountId: string) {
     return this.store.partnersOf(accountId);
   }
@@ -148,7 +242,7 @@ export class Service {
 
   /** Lädt einen gemerkten Partner in die eigene Lobby ein; er sieht die Einladung und kann ohne Code beitreten. */
   async invite(accountId: string, gameId: string, partnerId: string): Promise<{ error: string | null }> {
-    if (!(await this.store.isPartner(accountId, partnerId))) return { error: 'forbidden' };
+    if (!(await this.store.isPartner(accountId, partnerId)) || (await this.store.isBlockedEither(accountId, partnerId))) return { error: 'forbidden' };
     const me = await this.store.getAccount(accountId);
     if (!me) return { error: 'unknown' };
     const loaded = await this.store.loadGame(gameId);
@@ -183,6 +277,11 @@ export class Service {
     const account = await this.store.getAccount(accountId);
     if (!account) return fail('unknown');
     if ((await this.activeCount(accountId)) >= MAX_ACTIVE_GAMES) return fail('limit', 'Zu viele laufende Partien');
+    const lobby = await this.store.loadGame(gameId);
+    if (lobby && (await this.blockedInGame(accountId, lobby.game))) {
+      await this.store.deleteInvite(gameId, accountId);
+      return fail('notfound', 'Keine Einladung');
+    }
     const reply = await this.joinLobby(accountId, account.name, gameId);
     await this.store.deleteInvite(gameId, accountId);
     return reply;
@@ -219,6 +318,7 @@ export class Service {
   async startAuth(rawEmail: string, purpose: AuthPurpose, lang: 'de' | 'en'): Promise<{ error: string | null }> {
     const email = normalizeEmail(rawEmail);
     if (!email) return { error: 'invalid-email' };
+    if (purpose === 'login' && (await this.isBannedEmail(email))) return { error: 'banned' };
     if (purpose === 'delete' && !(await this.store.findAccountByEmail(email))) return { error: null };
 
     const now = this.clock();
@@ -291,6 +391,7 @@ export class Service {
       return { error: entry.attempts + 1 >= MAX_CODE_ATTEMPTS ? 'locked' : 'code' };
     }
     await this.store.deleteCode(email, purpose);
+    if (purpose === 'login' && (await this.isBannedEmail(email))) return { error: 'banned' };
 
     const existing = await this.store.findAccountByEmail(email);
     if (purpose === 'delete') {
@@ -416,6 +517,8 @@ export class Service {
     const found = await this.store.findLobbyByCode(code.trim().toUpperCase().slice(0, 16));
     if (!found) return fail('notfound', 'Kein offenes Spiel mit diesem Code');
     if ((await this.activeCount(accountId)) >= MAX_ACTIVE_GAMES) return fail('limit', 'Zu viele laufende Partien');
+    // Wer einen Mitspieler blockiert hat oder von ihm blockiert wurde, sieht nur „kein offenes Spiel“.
+    if (await this.blockedInGame(accountId, found.game)) return fail('notfound', 'Kein offenes Spiel mit diesem Code');
     const reply = await this.joinLobby(accountId, account.name, found.game.id);
     // Wer einem Spiel per Code beitritt, wird mit dem Ersteller zu gegenseitig gemerkten Partnern.
     if (reply.error === null && found.game.creatorId !== accountId) {
@@ -546,6 +649,7 @@ export class Service {
     const now = this.clock();
     await this.store.purge(now, FINISHED_KEEP_MS, LOBBY_KEEP_MS, IDLE_GAME_KEEP_MS);
     await this.store.purgeCodes(now - 24 * HOUR_MS);
+    await this.store.purgeReports(now - REPORT_KEEP_MS);
     for (const id of await this.store.staleAccounts(now - INACTIVE_ACCOUNT_MS)) await this.deleteAccount(id);
   }
 

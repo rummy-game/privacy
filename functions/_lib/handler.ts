@@ -1,6 +1,6 @@
 // HTTP-Schicht über dem Dienst: dieselben Endpunkte wie der Kotlin-Server (`HttpApi.kt`).
 
-import { decodeAuthStart, decodeAuthVerify, decodeMove, decodeNewGame, decodePush, encodeAccount, encodeInvites, encodePartners, encodeReply, encodeSummaries } from './codec';
+import { decodeAuthStart, decodeAuthVerify, decodeMove, decodeNewGame, decodePush, decodeSeatAction, encodeAccount, encodeBlocks, encodeInvites, encodePartners, encodeReply, encodeSummaries } from './codec';
 import type { OnlineReply } from './codec';
 import type { Service } from './service';
 
@@ -35,6 +35,20 @@ export async function handleApi(request: Request, service: Service, maintenanceT
     return text(r.account ? encodeAccount(r.account) : 'ok\n');
   }
   if (method === 'POST' && path === 'account') return text('error gone\n', 410);
+
+  if (parts[0] === 'admin') {
+    const given = request.headers.get('X-Maintenance') ?? '';
+    if (!maintenanceToken || given !== maintenanceToken) return text('error auth\n', 401);
+    if (method === 'GET' && path === 'admin/reports') return text(JSON.stringify(await service.adminReports(), null, 1) + '\n');
+    const field = (key: string) => new RegExp(`^${key} (.+)$`, 'm').exec(raw.replace(/\r/g, ''))?.[1]?.trim() ?? '';
+    if (method === 'POST' && path === 'admin/ban') return text((await service.adminBan(field('account'), field('reason') || 'abuse')) ? 'ok\n' : 'error notfound\n');
+    if (method === 'POST' && path === 'admin/unban') return text((await service.adminUnban(field('email'))) ? 'ok\n' : 'error invalid\n');
+    if (method === 'POST' && path === 'admin/dismiss') {
+      await service.adminDismiss(Number(field('report')));
+      return text('ok\n');
+    }
+    return text('error notfound\n', 404);
+  }
 
   if (method === 'POST' && path === 'maintenance') {
     const given = request.headers.get('X-Maintenance') ?? '';
@@ -72,6 +86,15 @@ export async function handleApi(request: Request, service: Service, maintenanceT
     await service.clearPush(id, req.token);
     return text('ok\n');
   }
+  if (method === 'GET' && path === 'blocks') return text(encodeBlocks(await service.blocks(id)));
+  if (parts.length === 2 && parts[0] === 'blocks' && method === 'POST') {
+    const r = await service.block(id, parts[1]);
+    return text(r.error ? `error ${r.error}\n` : 'ok\n');
+  }
+  if (parts.length === 2 && parts[0] === 'blocks' && method === 'DELETE') {
+    await service.unblock(id, parts[1]);
+    return text('ok\n');
+  }
   if (method === 'GET' && path === 'partners') return text(encodePartners(await service.partners(id)));
   if (method === 'DELETE' && parts.length === 2 && parts[0] === 'partners') {
     await service.removePartner(id, parts[1]);
@@ -98,6 +121,13 @@ export async function handleApi(request: Request, service: Service, maintenanceT
         return reply(await service.start(id, parts[1]));
       case 'resign':
         return reply(await service.resign(id, parts[1]));
+      case 'block':
+      case 'report': {
+        const act = decodeSeatAction(raw);
+        if (!act) return text('error invalid request\n', 400);
+        const r = parts[2] === 'block' ? await service.blockSeat(id, parts[1], act.seat) : await service.report(id, parts[1], act.seat, act.reason);
+        return text(r.error ? `error ${r.error}\n` : 'ok\n');
+      }
       case 'invite': {
         const r = await service.invite(id, parts[1], raw.trim().slice(0, 40));
         return text(r.error ? `error ${r.error}\n` : 'ok\n');

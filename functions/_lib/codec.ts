@@ -137,6 +137,27 @@ export function encodePartners(list: Array<{ id: string; name: string }>): strin
   return ['RUMMY-PARTNERS 1', ...list.map((p) => `partner ${p.id} ${clean(p.name)}`), 'end'].join('\n') + '\n';
 }
 
+/** `blocked <id> <name>` je Zeile. */
+export function encodeBlocks(list: Array<{ id: string; name: string }>): string {
+  return ['RUMMY-BLOCKS 1', ...list.map((p) => `blocked ${p.id} ${clean(p.name)}`), 'end'].join('\n') + '\n';
+}
+
+/** `seat <Platz>` und optional `reason name|behavior|other` (Zeilen in beliebiger Reihenfolge). */
+export function decodeSeatAction(text: string): { seat: number; reason: string } | null {
+  let seat = -1;
+  let reason = '';
+  for (const line of text.split('\n').map((l) => l.trim()).filter(Boolean)) {
+    const sp = line.indexOf(' ');
+    if (sp < 0) return null;
+    const key = line.slice(0, sp);
+    const value = line.slice(sp + 1).trim();
+    if (key === 'seat' && /^\d$/.test(value)) seat = Number(value);
+    else if (key === 'reason') reason = value;
+    else return null;
+  }
+  return seat >= 0 ? { seat, reason } : null;
+}
+
 /** `invite <Partie> <Plätze> <Name>` je Zeile. */
 export function encodeInvites(list: Array<{ gameId: string; fromName: string; seats: number }>): string {
   return ['RUMMY-INVITES 1', ...list.map((i) => `invite ${i.gameId} ${i.seats} ${clean(i.fromName)}`), 'end'].join('\n') + '\n';

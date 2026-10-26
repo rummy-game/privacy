@@ -67,6 +67,16 @@ export interface InviteEntry {
   createdAt: number;
 }
 
+export interface ReportEntry {
+  id: number;
+  reporterId: string;
+  reportedId: string;
+  reportedName: string;
+  reason: string;
+  gameId: string;
+  createdAt: number;
+}
+
 export interface Stored {
   game: Game;
   version: number;
@@ -116,6 +126,24 @@ export interface Store {
   deleteInvite(gameId: string, to: string): Promise<void>;
   hasInvite(gameId: string, to: string): Promise<boolean>;
 
+  /** Blockieren: gilt in beide Richtungen (keine Einladung, kein Beitritt). */
+  addBlock(accountId: string, blockedId: string, now: number): Promise<void>;
+  removeBlock(accountId: string, blockedId: string): Promise<void>;
+  blocksOf(accountId: string): Promise<PartnerEntry[]>;
+  /** `true`, wenn einer der beiden den anderen blockiert hat. */
+  isBlockedEither(a: string, b: string): Promise<boolean>;
+
+  addReport(r: Omit<ReportEntry, 'id'>): Promise<void>;
+  countReportsBy(reporterId: string, since: number): Promise<number>;
+  reports(limit: number): Promise<ReportEntry[]>;
+  deleteReport(id: number): Promise<void>;
+  purgeReports(before: number): Promise<void>;
+
+  /** Gesperrte Adressen (nur Prüfwert). */
+  addBan(emailHash: string, reason: string, now: number): Promise<void>;
+  removeBan(emailHash: string): Promise<void>;
+  isBanned(emailHash: string): Promise<boolean>;
+
   loadGame(id: string): Promise<Stored | null>;
   insertGame(game: Game): Promise<boolean>;
   saveGame(game: Game, version: number): Promise<boolean>;
@@ -139,6 +167,9 @@ export class MemoryStore implements Store {
   pushTokens = new Map<string, { accountId: string; lang: string; at: number }>();
   partners = new Map<string, Set<string>>();
   invites: Array<{ gameId: string; to: string; from: string; at: number }> = [];
+  blocks = new Map<string, Set<string>>();
+  reportList: ReportEntry[] = [];
+  bans = new Set<string>();
 
   async createAccount(a: Account) {
     if (this.accounts.has(a.id) || [...this.accounts.values()].some((x) => x.name === a.name)) return false;
@@ -197,7 +228,46 @@ export class MemoryStore implements Store {
     for (const [t, v] of this.pushTokens) if (v.accountId === id) this.pushTokens.delete(t);
     this.partners.delete(id);
     for (const set of this.partners.values()) set.delete(id);
+    this.blocks.delete(id);
+    for (const set of this.blocks.values()) set.delete(id);
     this.invites = this.invites.filter((i) => i.to !== id && i.from !== id);
+  }
+  async addBlock(accountId: string, blockedId: string) {
+    if (!this.blocks.has(accountId)) this.blocks.set(accountId, new Set());
+    this.blocks.get(accountId)!.add(blockedId);
+  }
+  async removeBlock(accountId: string, blockedId: string) {
+    this.blocks.get(accountId)?.delete(blockedId);
+  }
+  async blocksOf(accountId: string) {
+    return [...(this.blocks.get(accountId) ?? [])].map((id) => ({ id, name: this.accounts.get(id)?.name ?? '' })).filter((p) => p.name !== '');
+  }
+  async isBlockedEither(a: string, b: string) {
+    return (this.blocks.get(a)?.has(b) ?? false) || (this.blocks.get(b)?.has(a) ?? false);
+  }
+  async addReport(r: Omit<ReportEntry, 'id'>) {
+    this.reportList.push({ ...r, id: this.reportList.length + 1 });
+  }
+  async countReportsBy(reporterId: string, since: number) {
+    return this.reportList.filter((r) => r.reporterId === reporterId && r.createdAt >= since).length;
+  }
+  async reports(limit: number) {
+    return this.reportList.slice(-limit).reverse().map((r) => ({ ...r }));
+  }
+  async deleteReport(id: number) {
+    this.reportList = this.reportList.filter((r) => r.id !== id);
+  }
+  async purgeReports(before: number) {
+    this.reportList = this.reportList.filter((r) => r.createdAt >= before);
+  }
+  async addBan(emailHash: string) {
+    this.bans.add(emailHash);
+  }
+  async removeBan(emailHash: string) {
+    this.bans.delete(emailHash);
+  }
+  async isBanned(emailHash: string) {
+    return this.bans.has(emailHash);
   }
   async addPushToken(accountId: string, token: string, lang: string, now: number) {
     this.pushTokens.set(token, { accountId, lang, at: now });
@@ -361,6 +431,66 @@ export class D1Store implements Store {
     const r = await this.db.prepare('SELECT id FROM accounts WHERE last_seen < ? LIMIT 100').bind(cutoff).all<{ id: string }>();
     return r.results.map((x) => x.id);
   }
+  async addBlock(accountId: string, blockedId: string, now: number) {
+    await this.db.prepare('INSERT OR IGNORE INTO blocks (account_id, blocked_id, since) VALUES (?, ?, ?)').bind(accountId, blockedId, now).run();
+  }
+  async removeBlock(accountId: string, blockedId: string) {
+    await this.db.prepare('DELETE FROM blocks WHERE account_id = ? AND blocked_id = ?').bind(accountId, blockedId).run();
+  }
+  async blocksOf(accountId: string) {
+    const r = await this.db
+      .prepare('SELECT a.id AS id, a.name AS name FROM blocks b JOIN accounts a ON a.id = b.blocked_id WHERE b.account_id = ? ORDER BY a.name')
+      .bind(accountId)
+      .all<{ id: string; name: string }>();
+    return r.results.map((x) => ({ id: x.id, name: x.name }));
+  }
+  async isBlockedEither(a: string, b: string) {
+    const r = await this.db
+      .prepare('SELECT 1 AS x FROM blocks WHERE (account_id = ? AND blocked_id = ?) OR (account_id = ? AND blocked_id = ?)')
+      .bind(a, b, b, a)
+      .first();
+    return r !== null;
+  }
+  async addReport(r: Omit<ReportEntry, 'id'>) {
+    await this.db
+      .prepare('INSERT INTO reports (reporter_id, reported_id, reported_name, reason, game_id, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(r.reporterId, r.reportedId, r.reportedName, r.reason, r.gameId, r.createdAt)
+      .run();
+  }
+  async countReportsBy(reporterId: string, since: number) {
+    const r = await this.db.prepare('SELECT COUNT(*) AS n FROM reports WHERE reporter_id = ? AND created_at >= ?').bind(reporterId, since).first<{ n: number }>();
+    return r?.n ?? 0;
+  }
+  async reports(limit: number) {
+    const r = await this.db
+      .prepare('SELECT id, reporter_id, reported_id, reported_name, reason, game_id, created_at FROM reports ORDER BY id DESC LIMIT ?')
+      .bind(limit)
+      .all<{ id: number; reporter_id: string; reported_id: string; reported_name: string; reason: string; game_id: string; created_at: number }>();
+    return r.results.map((x) => ({
+      id: x.id,
+      reporterId: x.reporter_id,
+      reportedId: x.reported_id,
+      reportedName: x.reported_name,
+      reason: x.reason,
+      gameId: x.game_id,
+      createdAt: x.created_at,
+    }));
+  }
+  async deleteReport(id: number) {
+    await this.db.prepare('DELETE FROM reports WHERE id = ?').bind(id).run();
+  }
+  async purgeReports(before: number) {
+    await this.db.prepare('DELETE FROM reports WHERE created_at < ?').bind(before).run();
+  }
+  async addBan(emailHash: string, reason: string, now: number) {
+    await this.db.prepare('INSERT OR REPLACE INTO bans (email_hash, reason, created_at) VALUES (?, ?, ?)').bind(emailHash, reason, now).run();
+  }
+  async removeBan(emailHash: string) {
+    await this.db.prepare('DELETE FROM bans WHERE email_hash = ?').bind(emailHash).run();
+  }
+  async isBanned(emailHash: string) {
+    return (await this.db.prepare('SELECT 1 AS x FROM bans WHERE email_hash = ?').bind(emailHash).first()) !== null;
+  }
   async addPushToken(accountId: string, token: string, lang: string, now: number) {
     await this.db
       .prepare('INSERT OR REPLACE INTO push_tokens (token, account_id, lang, created_at) VALUES (?, ?, ?, ?)')
@@ -424,6 +554,7 @@ export class D1Store implements Store {
     await this.db.batch([
       this.db.prepare('DELETE FROM push_tokens WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM partners WHERE account_id = ? OR partner_id = ?').bind(id, id),
+      this.db.prepare('DELETE FROM blocks WHERE account_id = ? OR blocked_id = ?').bind(id, id),
       this.db.prepare('DELETE FROM invites WHERE to_account = ? OR from_account = ?').bind(id, id),
       this.db.prepare('DELETE FROM game_players WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM account_secrets WHERE account_id = ?').bind(id),

@@ -18,6 +18,8 @@ interface Env {
   TEST_CODE?: string;
   /** Firebase-Dienstkonto (JSON) für Benachrichtigungen, als Secret; ohne den Schlüssel gibt es keine Benachrichtigungen. */
   FCM_SERVICE_ACCOUNT?: string;
+  /** E-Mail-Adresse des Betreibers: bekommt bei jeder Meldung eines Spielers eine Mail (optional). */
+  REPORT_TO?: string;
 }
 
 /** Alle Anfragen unter /api/* des Online-Mehrspielers (Cloudflare Pages Functions mit D1). */
@@ -28,6 +30,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, waitUntil })
     : null;
   const pusher = env.FCM_SERVICE_ACCOUNT ? new FcmPusher(env.FCM_SERVICE_ACCOUNT) : new NoPusher();
   const service = new Service(new D1Store(env.DB), Date.now, cryptoRng, mailer, testLogin, pusher);
+  service.reportTo = env.REPORT_TO ?? '';
   try {
     const response = await handleApi(request, service, env.MAINTENANCE_TOKEN ?? '');
     waitUntil(service.flush());
