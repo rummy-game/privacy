@@ -67,4 +67,5 @@ Offen: automatische Löschung inaktiver Konten (steht deshalb nicht in der Daten
 - **Abgelaufene Frist:** Es wird nur für den Platz gezogen bzw. ausgesetzt. Frist `0` heißt unbegrenzt (nie automatisch ziehen).
 - **Aufräumen:** Laufende Partien ohne Zugfrist werden nach 30 Tagen ohne Änderung gelöscht (Spalte `touched_at`, Migration `0008_touched.sql`).
 - **Bilanz:** Am Partieende zählt der Dienst Siege, Niederlagen und Remis je Paar von Menschen (Tabelle `records`, Migration `0007_records.sql`, `GET /api/records`).
+- **Fristpause (Regel je Partie, Standard: ruht):** Die App meldet beim Verlassen und Zurückkehren `POST games/<id>/presence` (`away 1|0`). Verlässt der Spieler am Zug die App, ruht die Frist (`pausedAt`), bei Rückkehr verschiebt sich das Fristende; kommt der Zug an einen abwesenden Spieler, beginnt die Frist erst mit seiner Rückkehr. Fehlt die Meldung, läuft die Frist weiter. Neues Feld im Befehl `newgame` (neuntes Feld) und in der Sicht (`limit … <Regel> <pausedAt>`). Der Kotlin-Referenzserver kennt die Fristpause nicht.
 - **Einspielen:** erst die Migrationen `0007` und `0008` (`npx wrangler d1 migrations apply rummy --remote`), dann deployen.
