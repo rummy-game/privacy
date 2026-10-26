@@ -3,7 +3,7 @@ import { decodePush } from '../functions/_lib/codec';
 import { handleApi } from '../functions/_lib/handler';
 import { MemoryMailer } from '../functions/_lib/mailer';
 import { MemoryPusher, pushText } from '../functions/_lib/push';
-import { Service } from '../functions/_lib/service';
+import { normalizeName, Service } from '../functions/_lib/service';
 import { MemoryStore } from '../functions/_lib/store';
 import { defaultRules } from '../functions/_lib/rules';
 
@@ -182,5 +182,35 @@ describe('Gemerkte Partner und Einladungen', () => {
     const { a, b, service } = await twoPlayers(false);
     await service.deleteAccount(b.id);
     expect(await service.partners(a.id)).toEqual([]);
+  });
+});
+
+describe('Anzeigename ändern', () => {
+  it('prüft die Form, vergibt Namen nur einmal und zieht ihn in laufende Partien nach', async () => {
+    const { service, store } = setup();
+    const a = (await service.createAccount())!;
+    const b = (await service.createAccount())!;
+    expect(normalizeName('  Anna   Maria ')).toBe('Anna Maria');
+    for (const bad of ['', 'ab', 'x'.repeat(21), '-Anna', 'Anna!', 'KI Hans', 'Hans (KI)', '<b>Anna</b>']) {
+      expect(normalizeName(bad), bad).toBeNull();
+    }
+    expect(await service.setName(a.id, 'Anna Maria')).toEqual({ name: 'Anna Maria' });
+    expect((await store.getAccount(a.id))!.name).toBe('Anna Maria');
+    expect(await service.setName(b.id, 'Anna Maria')).toEqual({ error: 'taken' });
+    expect(await service.setName(b.id, '!')).toEqual({ error: 'invalid' });
+
+    const lobby = await service.createGame(a.id, newGame);
+    await service.setName(a.id, 'Anna Zwei');
+    expect((await service.view(a.id, lobby.view!.id)).view!.seats[0].name).toBe('Anna Zwei');
+  });
+
+  it('die HTTP-Schicht nimmt „name …“ an und würfelt ohne Inhalt weiter neu', async () => {
+    const { service } = setup();
+    const a = (await service.createAccount())!;
+    const call = (body: string) =>
+      handleApi(new Request('https://x/api/account/name', { method: 'POST', body, headers: { 'X-Account': a.id, 'X-Secret': a.secret } }), service);
+    expect(await (await call('name Max Muster\n')).text()).toBe('name Max Muster\n');
+    expect(await (await call('name x\n')).text()).toBe('error invalid\n');
+    expect((await (await call('')).text()).startsWith('name ')).toBe(true);
   });
 });

@@ -59,6 +59,14 @@ export function normalizeEmail(raw: string): string | null {
   if (!/^[^\s@<>"',;:\\]+@[^\s@<>"',;:\\]+\.[a-z0-9-]{2,}$/.test(email)) return null;
   return email;
 }
+/** Anzeigename prüfen und bereinigen; `null`, wenn er nicht zulässig ist. Mit „KI“ beginnende Namen sind den Computerspielern vorbehalten. */
+export function normalizeName(raw: string): string | null {
+  const name = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (name.length < 3 || name.length > 20) return null;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} ._-]*[\p{L}\p{N}]$/u.test(name)) return null;
+  if (/^ki\b/i.test(name) || /\(ki\)/i.test(name)) return null;
+  return name;
+}
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 const RETRIES = 6;
@@ -329,16 +337,32 @@ export class Service {
     for (let i = 0; i < 20; i++) {
       const name = randomName(this.rng);
       if (await this.store.renameAccount(accountId, name)) {
-        for (const s of await this.store.gamesOf(accountId)) {
-          await this.transact(s.game.id, (g) => {
-            g.slots.filter((x) => x.accountId === accountId).forEach((x) => (x.name = name));
-            return { reply: fail('ok') };
-          });
-        }
+        await this.renameInGames(accountId, name);
         return name;
       }
     }
     return null;
+  }
+
+  /** Eigener Anzeigename: 3 bis 20 Zeichen (Buchstaben, Ziffern, Leerzeichen, Punkt, Bindestrich, Unterstrich), einmalig vergeben. */
+  async setName(accountId: string, raw: string): Promise<{ name?: string; error?: 'invalid' | 'taken' | 'unknown' }> {
+    const name = normalizeName(raw);
+    if (name === null) return { error: 'invalid' };
+    const account = await this.store.getAccount(accountId);
+    if (!account) return { error: 'unknown' };
+    if (account.name === name) return { name };
+    if (!(await this.store.renameAccount(accountId, name))) return { error: 'taken' };
+    await this.renameInGames(accountId, name);
+    return { name };
+  }
+
+  private async renameInGames(accountId: string, name: string): Promise<void> {
+    for (const s of await this.store.gamesOf(accountId)) {
+      await this.transact(s.game.id, (g) => {
+        g.slots.filter((x) => x.accountId === accountId).forEach((x) => (x.name = name));
+        return { reply: fail('ok') };
+      });
+    }
   }
 
   /** Löscht das Konto: laufende Partien werden aufgegeben, danach bleibt nichts zurück. */

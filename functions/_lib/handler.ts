@@ -51,6 +51,12 @@ export async function handleApi(request: Request, service: Service, maintenanceT
     await service.deleteAccount(id);
     return text('ok\n');
   }
+  if (method === 'POST' && path === 'account/name' && raw.trim() !== '') {
+    const m = /^name (.+)$/m.exec(raw.replace(/\r/g, ''));
+    if (!m) return text('error invalid request\n', 400);
+    const r = await service.setName(id, m[1]);
+    return r.name ? text(`name ${r.name}\n`) : text(`error ${r.error}\n`, r.error === 'unknown' ? 404 : 200);
+  }
   if (method === 'POST' && path === 'account/name') {
     const name = await service.rerollName(id);
     return name ? text(`name ${name}\n`) : text('error unknown\n', 404);
