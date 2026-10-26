@@ -144,6 +144,13 @@ export interface Store {
   removeBan(emailHash: string): Promise<void>;
   isBanned(emailHash: string): Promise<boolean>;
 
+  /** Zählt einen Zugriff im Fenster [window] des Schlüssels [key] und liefert den neuen Stand. */
+  hit(key: string, window: number): Promise<number>;
+  /** Löscht Zähler, deren Fenster vor [before] (Fensternummer in Millisekunden, grob) liegt. */
+  purgeLimits(olderThanMs: number, now: number): Promise<void>;
+  /** Konten, deren Adresse auf [suffix] endet (Testkonten), höchstens 100. */
+  accountsWithEmailSuffix(suffix: string): Promise<string[]>;
+
   loadGame(id: string): Promise<Stored | null>;
   insertGame(game: Game): Promise<boolean>;
   saveGame(game: Game, version: number): Promise<boolean>;
@@ -170,6 +177,7 @@ export class MemoryStore implements Store {
   blocks = new Map<string, Set<string>>();
   reportList: ReportEntry[] = [];
   bans = new Set<string>();
+  limits = new Map<string, number>();
 
   async createAccount(a: Account) {
     if (this.accounts.has(a.id) || [...this.accounts.values()].some((x) => x.name === a.name)) return false;
@@ -231,6 +239,18 @@ export class MemoryStore implements Store {
     this.blocks.delete(id);
     for (const set of this.blocks.values()) set.delete(id);
     this.invites = this.invites.filter((i) => i.to !== id && i.from !== id);
+  }
+  async hit(key: string, window: number) {
+    const k = `${key}#${window}`;
+    const n = (this.limits.get(k) ?? 0) + 1;
+    this.limits.set(k, n);
+    return n;
+  }
+  async purgeLimits() {
+    this.limits.clear();
+  }
+  async accountsWithEmailSuffix(suffix: string) {
+    return [...this.accounts.values()].filter((a) => a.email?.endsWith(suffix)).map((a) => a.id).slice(0, 100);
   }
   async addBlock(accountId: string, blockedId: string) {
     if (!this.blocks.has(accountId)) this.blocks.set(accountId, new Set());
@@ -429,6 +449,19 @@ export class D1Store implements Store {
   }
   async staleAccounts(cutoff: number) {
     const r = await this.db.prepare('SELECT id FROM accounts WHERE last_seen < ? LIMIT 100').bind(cutoff).all<{ id: string }>();
+    return r.results.map((x) => x.id);
+  }
+  async hit(key: string, window: number) {
+    await this.db.prepare('INSERT INTO rate_limits (key, window, n) VALUES (?, ?, 1) ON CONFLICT(key, window) DO UPDATE SET n = n + 1').bind(key, window).run();
+    const r = await this.db.prepare('SELECT n FROM rate_limits WHERE key = ? AND window = ?').bind(key, window).first<{ n: number }>();
+    return r?.n ?? 1;
+  }
+  async purgeLimits() {
+    // Fenster sind nach spätestens einem Tag abgelaufen; Zähler sind nur kurz nützlich.
+    await this.db.prepare('DELETE FROM rate_limits').run();
+  }
+  async accountsWithEmailSuffix(suffix: string) {
+    const r = await this.db.prepare("SELECT id FROM accounts WHERE email LIKE ? ESCAPE '\\' LIMIT 100").bind('%' + suffix.replace(/[%_\\]/g, (c) => '\\' + c)).all<{ id: string }>();
     return r.results.map((x) => x.id);
   }
   async addBlock(accountId: string, blockedId: string, now: number) {

@@ -22,6 +22,9 @@ import type { Pusher } from './push';
 import type { Game, ReportEntry, Slot, Store, Stored } from './store';
 
 export const MAX_MISSES = 3;
+/** Ab diesem Zeitpunkt gilt der feste Testcode nicht mehr, auch wenn die Secrets noch gesetzt sind (31.12.2026). */
+export const TEST_LOGIN_UNTIL = Date.UTC(2026, 11, 31);
+const TEST_DOMAIN = '@rummy-test.invalid';
 export const MAX_REPORTS_PER_DAY = 20;
 const REPORT_KEEP_MS = 90 * 24 * 3600 * 1000;
 export const MAX_ACTIVE_GAMES = 10;
@@ -141,6 +144,24 @@ export class Service {
 
   async clearPush(accountId: string, token: string): Promise<void> {
     await this.store.removePushToken(accountId, token);
+  }
+
+  private testLoginActive(): boolean {
+    return this.testLogin !== null && this.clock() < TEST_LOGIN_UNTIL;
+  }
+
+  /**
+   * Ratenbegrenzung: höchstens [max] Zugriffe je Zeitfenster [windowMs] für [key]. Der Schlüssel ist ein Prüfwert
+   * (nie die Adresse im Klartext); die Zähler werden täglich gelöscht.
+   */
+  async allow(key: string, max: number, windowMs: number): Promise<boolean> {
+    const n = await this.store.hit(`${key}|${windowMs}`, Math.floor(this.clock() / windowMs));
+    return n <= max;
+  }
+
+  /** Prüfwert für eine Absenderadresse, nur für den laufenden Tag gültig. */
+  async limitKey(ip: string, scope: string): Promise<string> {
+    return sha256(`rl|${scope}|${ip}|${Math.floor(this.clock() / (24 * HOUR_MS))}`);
   }
 
   // --- Blockieren, Melden, Sperren ---
@@ -322,7 +343,7 @@ export class Service {
     if (purpose === 'delete' && !(await this.store.findAccountByEmail(email))) return { error: null };
 
     const now = this.clock();
-    if (this.testLogin && this.testLogin.emails.has(email)) {
+    if (this.testLoginActive() && this.testLogin!.emails.has(email)) {
       await this.store.putCode({
         email,
         purpose,
@@ -650,6 +671,9 @@ export class Service {
     await this.store.purge(now, FINISHED_KEEP_MS, LOBBY_KEEP_MS, IDLE_GAME_KEEP_MS);
     await this.store.purgeCodes(now - 24 * HOUR_MS);
     await this.store.purgeReports(now - REPORT_KEEP_MS);
+    await this.store.purgeLimits(24 * HOUR_MS, now);
+    // Ist der Testzugang nicht mehr aktiv, werden dessen Konten entfernt.
+    if (!this.testLoginActive()) for (const id of await this.store.accountsWithEmailSuffix(TEST_DOMAIN)) await this.deleteAccount(id);
     for (const id of await this.store.staleAccounts(now - INACTIVE_ACCOUNT_MS)) await this.deleteAccount(id);
   }
 

@@ -11,6 +11,14 @@ const text = (body: string, status = 200) =>
 
 const reply = (r: OnlineReply) => text(encodeReply(r));
 
+/** Nur die eigene Adresse (und lokale Entwicklung) bedient die API; alte Deployment-Adressen und Vorschauen nicht. */
+export function isAllowedHost(host: string, extra = ''): boolean {
+  const allowed = ['rummy-game-6ke.pages.dev', 'localhost', '127.0.0.1', ...extra.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean)];
+  return allowed.includes(host.toLowerCase().replace(/:\d+$/, ''));
+}
+
+const tooMany = () => text('error ratelimit\n', 429);
+
 export async function handleApi(request: Request, service: Service, maintenanceToken = ''): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/api\/?/, '').replace(/\/+$/, '');
@@ -19,6 +27,18 @@ export async function handleApi(request: Request, service: Service, maintenanceT
 
   const raw = method === 'GET' || method === 'DELETE' ? '' : await request.text();
   if (raw.length > MAX_BODY) return text('error toolarge\n', 413);
+
+  // Ratenbegrenzung der empfindlichen Aufrufe je Absenderadresse (Cloudflare nennt sie in CF-Connecting-IP).
+  // Ohne Angabe (lokale Tests) entfällt sie; allgemeine Überflutung fängt die WAF-Regel von Cloudflare ab.
+  const ip = request.headers.get('CF-Connecting-IP') ?? '';
+  if (ip && method === 'POST' && path === 'auth/start') {
+    const key = await service.limitKey(ip, 'start');
+    // Das Tageslimit schützt das Mail-Kontingent, die Minutengrenze das Postfach Dritter.
+    if (!(await service.allow(key, 5, 60_000)) || !(await service.allow(key, 15, 24 * 3600_000))) return tooMany();
+  }
+  if (ip && method === 'POST' && path === 'auth/verify') {
+    if (!(await service.allow(await service.limitKey(ip, 'verify'), 10, 60_000))) return tooMany();
+  }
 
   // Anmeldung und Registrierung nur per E-Mail-Code; anonyme Konten gibt es nicht mehr.
   if (method === 'POST' && path === 'auth/start') {
@@ -60,6 +80,11 @@ export async function handleApi(request: Request, service: Service, maintenanceT
   const id = request.headers.get('X-Account') ?? '';
   const secret = request.headers.get('X-Secret') ?? '';
   if (!(await service.authenticate(id, secret))) return text('error auth\n', 401);
+
+  // Raten von Codes und Namen erschweren: höchstens 10 Beitritte und 10 Namensänderungen pro Minute und Konto
+  if (ip && method === 'POST' && (path === 'games/join' || path === 'account/name')) {
+    if (!(await service.allow(`acct:${id}:${path}`, 10, 60_000))) return tooMany();
+  }
 
   if (method === 'DELETE' && path === 'account') {
     await service.deleteAccount(id);
