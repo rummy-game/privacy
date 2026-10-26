@@ -105,3 +105,23 @@ describe('Erlaubte Hostnamen', () => {
     expect(isAllowedHost('rummy.example.org', 'rummy.example.org, other.example')).toBe(true);
   });
 });
+
+describe('Brevo-Zugangsdaten aus Secrets', () => {
+  it('lösen Schlüssel und Adresse aus Fremdzeichen heraus', async () => {
+    const { BrevoMailer } = await import('../functions/_lib/mailer');
+    const seen: Array<Record<string, unknown>> = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      seen.push({ headers: init.headers, body: JSON.parse(String(init.body)) });
+      return new Response('{}', { status: 201 });
+    }) as typeof fetch;
+    try {
+      const mailer = new BrevoMailer('﻿?xkeysib-abc123-DEF456\r\n', '﻿fsnavivfr@gmail.com\r\n', 'Rummy\r\n');
+      expect(await mailer.send('a@example.com', 'Betreff', 'Text')).toBe(true);
+      expect((seen[0].headers as Record<string, string>)['api-key']).toBe('xkeysib-abc123-DEF456');
+      expect((seen[0].body as { sender: { email: string; name: string } }).sender).toEqual({ email: 'fsnavivfr@gmail.com', name: 'Rummy' });
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+});

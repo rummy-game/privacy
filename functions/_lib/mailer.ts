@@ -34,9 +34,10 @@ export class BrevoMailer implements Mailer {
 
   // Secrets, die per Eingabe gesetzt wurden, tragen oft Zeilenumbrüche oder Steuerzeichen: nur druckbares ASCII behalten.
   constructor(apiKey: string, fromEmail: string, fromName: string) {
-    // Auch Byte-Order-Marken und Nullzeichen entfernen, die beim Eingeben über PowerShell mitkommen können.
-    this.apiKey = apiKey.replace(/[^!-~]/g, '');
-    this.fromEmail = fromEmail.replace(/[^!-~]/g, '');
+    // Per PowerShell eingegebene Secrets tragen manchmal Fremdzeichen (Byte-Order-Marke, „?“ statt eines Zeichens, Nullzeichen):
+    // Schlüssel und Adresse werden aus dem Wert herausgelöst.
+    this.apiKey = /xkeysib-[A-Za-z0-9_-]+/.exec(apiKey)?.[0] ?? apiKey.replace(/[^!-~]/g, '');
+    this.fromEmail = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.exec(fromEmail)?.[0] ?? fromEmail.replace(/[^!-~]/g, '');
     this.fromName = fromName.replace(/[^ -~]/g, '').trim();
   }
 
