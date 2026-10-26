@@ -61,3 +61,10 @@ Offen: automatische Löschung inaktiver Konten (steht deshalb nicht in der Daten
 - **Ratenbegrenzung im Code** (Migration `0006_rate_limits.sql`, vor dem Deploy einspielen!): Code-Anfragen höchstens 5 pro Minute und 15 pro Tag je Absenderadresse, Code-Prüfung 10 pro Minute, Beitritt per Code und Namensänderung je 10 pro Minute und Konto; Antwort `429 error ratelimit`. Gespeichert wird nur ein Prüfwert aus Adresse und Tag (nie die Adresse), die Zähler löscht die tägliche Wartung. Gegen allgemeine Überflutung bleibt die WAF-Regel von Cloudflare nötig (Schritt 4 oben).
 - **Test-Zugang läuft ab:** `TEST_LOGIN_UNTIL` (31.12.2026, in `service.ts`). Danach gilt der feste Code auch bei gesetzten Secrets nicht mehr, und die Wartung löscht Konten mit Adressen auf `@rummy-test.invalid`. Die Secrets trotzdem vor dem öffentlichen Start löschen.
 - **Nur die eigene Adresse bedient die API:** `rummy-game-6ke.pages.dev` und `localhost`; alte Deployment-Adressen (`<hash>.rummy-game-6ke.pages.dev`) und Vorschauen antworten `404`, sobald sie den neuen Code enthalten. Eine eigene Domain per Variable `ALLOWED_HOSTS` (Komma-getrennt) freigeben. Alte Deployments, die noch den alten Code ausliefern, im Pages-Projekt unter „Deployments“ löschen.
+
+## Aufgabe, Frist, Bilanz (26.10.2026)
+- **Aufgeben zu zweit** (auch Konto löschen): Die Partie endet als aufgegeben (Ereignis `resigned`), der andere Platz gewinnt, der Computer übernimmt nicht. Bei mehr als zwei Plätzen übernimmt wie bisher ein Computer (sofort bei Aufgabe, nach drei verpassten Fristen).
+- **Abgelaufene Frist:** Es wird nur für den Platz gezogen bzw. ausgesetzt. Frist `0` heißt unbegrenzt (nie automatisch ziehen).
+- **Aufräumen:** Laufende Partien ohne Zugfrist werden nach 90 Tagen ohne Änderung gelöscht (Spalte `touched_at`, Migration `0008_touched.sql`).
+- **Bilanz:** Am Partieende zählt der Dienst Siege, Niederlagen und Remis je Paar von Menschen (Tabelle `records`, Migration `0007_records.sql`, `GET /api/records`).
+- **Einspielen:** erst die Migrationen `0007` und `0008` (`npx wrangler d1 migrations apply rummy --remote`), dann deployen.
