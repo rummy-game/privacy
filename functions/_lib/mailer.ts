@@ -28,11 +28,16 @@ export class MemoryMailer implements Mailer {
 }
 
 export class BrevoMailer implements Mailer {
-  constructor(
-    private apiKey: string,
-    private fromEmail: string,
-    private fromName: string,
-  ) {}
+  private apiKey: string;
+  private fromEmail: string;
+  private fromName: string;
+
+  // Secrets, die per Eingabe gesetzt wurden, tragen oft einen Zeilenumbruch am Ende: entfernen.
+  constructor(apiKey: string, fromEmail: string, fromName: string) {
+    this.apiKey = apiKey.trim();
+    this.fromEmail = fromEmail.trim();
+    this.fromName = fromName.trim();
+  }
 
   async send(to: string, subject: string, text: string): Promise<boolean> {
     try {
@@ -41,8 +46,12 @@ export class BrevoMailer implements Mailer {
         headers: { 'api-key': this.apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ sender: { email: this.fromEmail, name: this.fromName }, to: [{ email: to }], subject, textContent: text }),
       });
-      return res.status >= 200 && res.status < 300;
-    } catch {
+      if (res.status >= 200 && res.status < 300) return true;
+      // Für die Fehlersuche (wrangler pages deployment tail): nur Status und Meldung von Brevo, nie Schlüssel oder Adresse.
+      console.error(`brevo ${res.status} ${(await res.text()).slice(0, 200)}`);
+      return false;
+    } catch (e) {
+      console.error(`brevo fetch failed: ${String(e).slice(0, 100)}`);
       return false;
     }
   }

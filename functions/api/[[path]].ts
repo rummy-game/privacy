@@ -30,7 +30,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, waitUntil })
   if (!isAllowedHost(new URL(request.url).hostname, env.ALLOWED_HOSTS ?? '')) {
     return new Response('error notfound\n', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
-  const mailer = env.BREVO_API_KEY && env.MAIL_FROM ? new BrevoMailer(env.BREVO_API_KEY, env.MAIL_FROM, env.MAIL_FROM_NAME ?? 'Rummy') : new NoMailer();
+  const mailer = env.BREVO_API_KEY?.trim() && env.MAIL_FROM?.trim() ? new BrevoMailer(env.BREVO_API_KEY, env.MAIL_FROM, env.MAIL_FROM_NAME ?? 'Rummy') : new NoMailer();
   const testLogin = env.TEST_EMAILS && env.TEST_CODE && /^\d{6}$/.test(env.TEST_CODE)
     ? { emails: new Set(env.TEST_EMAILS.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)), code: env.TEST_CODE }
     : null;
