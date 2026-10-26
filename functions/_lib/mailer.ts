@@ -32,11 +32,12 @@ export class BrevoMailer implements Mailer {
   private fromEmail: string;
   private fromName: string;
 
-  // Secrets, die per Eingabe gesetzt wurden, tragen oft einen Zeilenumbruch am Ende: entfernen.
+  // Secrets, die per Eingabe gesetzt wurden, tragen oft Zeilenumbrüche oder Steuerzeichen: nur druckbares ASCII behalten.
   constructor(apiKey: string, fromEmail: string, fromName: string) {
-    this.apiKey = apiKey.trim();
-    this.fromEmail = fromEmail.trim();
-    this.fromName = fromName.trim();
+    // Auch Byte-Order-Marken und Nullzeichen entfernen, die beim Eingeben über PowerShell mitkommen können.
+    this.apiKey = apiKey.replace(/[^!-~]/g, '');
+    this.fromEmail = fromEmail.replace(/[^!-~]/g, '');
+    this.fromName = fromName.replace(/[^ -~]/g, '').trim();
   }
 
   async send(to: string, subject: string, text: string): Promise<boolean> {
