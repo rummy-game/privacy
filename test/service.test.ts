@@ -205,7 +205,7 @@ describe('Partien', () => {
     expect(vb.seats.some((x) => x.ai !== null && x.name.endsWith('(KI)'))).toBe(true);
   });
 
-  it('ohne Zugfrist gibt es nie eine Frist, nur nach 90 Tagen Ruhe wird die Partie gelöscht', async () => {
+  it('ohne Zugfrist gibt es nie eine Frist, nur nach 30 Tagen Ruhe wird die Partie gelöscht', async () => {
     const { service, clock, a, b, game, store } = await twoPlayers(0);
     clock.now += 200 * 24 * 3600 * 1000;
     expect((await viewOf(service, a.id, game)).deadlineAt).toBe(0);
@@ -214,7 +214,7 @@ describe('Partien', () => {
     const [who] = await turnOwner(service, a, b, game);
     const v = await viewOf(service, who.id, game);
     await service.move(who.id, game, { turn: v.turn, table: null });
-    clock.now += 89 * 24 * 3600 * 1000;
+    clock.now += 29 * 24 * 3600 * 1000;
     await service.maintenance();
     expect(await store.loadGame(game)).not.toBeNull();
     clock.now += 2 * 24 * 3600 * 1000;

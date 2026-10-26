@@ -176,7 +176,7 @@ export interface Store {
 }
 
 /** Laufende Partien ohne Zugfrist werden gelöscht, wenn so lange nichts mehr passiert ist. */
-export const NO_LIMIT_IDLE_KEEP_MS = 90 * 24 * 3600 * 1000;
+export const NO_LIMIT_IDLE_KEEP_MS = 30 * 24 * 3600 * 1000;
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 

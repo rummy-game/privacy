@@ -65,6 +65,6 @@ Offen: automatische Löschung inaktiver Konten (steht deshalb nicht in der Daten
 ## Aufgabe, Frist, Bilanz (26.10.2026)
 - **Aufgeben zu zweit** (auch Konto löschen): Die Partie endet als aufgegeben (Ereignis `resigned`), der andere Platz gewinnt, der Computer übernimmt nicht. Bei mehr als zwei Plätzen übernimmt wie bisher ein Computer (sofort bei Aufgabe, nach drei verpassten Fristen).
 - **Abgelaufene Frist:** Es wird nur für den Platz gezogen bzw. ausgesetzt. Frist `0` heißt unbegrenzt (nie automatisch ziehen).
-- **Aufräumen:** Laufende Partien ohne Zugfrist werden nach 90 Tagen ohne Änderung gelöscht (Spalte `touched_at`, Migration `0008_touched.sql`).
+- **Aufräumen:** Laufende Partien ohne Zugfrist werden nach 30 Tagen ohne Änderung gelöscht (Spalte `touched_at`, Migration `0008_touched.sql`).
 - **Bilanz:** Am Partieende zählt der Dienst Siege, Niederlagen und Remis je Paar von Menschen (Tabelle `records`, Migration `0007_records.sql`, `GET /api/records`).
 - **Einspielen:** erst die Migrationen `0007` und `0008` (`npx wrangler d1 migrations apply rummy --remote`), dann deployen.
