@@ -207,7 +207,7 @@ describe('Partien', () => {
 
   it('ohne Zugfrist gibt es nie eine Frist, nur nach 90 Tagen Ruhe wird die Partie gelöscht', async () => {
     const { service, clock, a, b, game, store } = await twoPlayers(0);
-    clock.now += 365 * 24 * 3600 * 1000;
+    clock.now += 200 * 24 * 3600 * 1000;
     expect((await viewOf(service, a.id, game)).deadlineAt).toBe(0);
     expect((await viewOf(service, a.id, game)).rack).toHaveLength(14);
     // eine Änderung setzt die Ruhe zurück
