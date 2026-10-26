@@ -14,7 +14,7 @@ export interface OnlineSeat {
 }
 
 export interface OnlineEvent {
-  kind: 'none' | 'started' | 'placed' | 'drew' | 'passed';
+  kind: 'none' | 'started' | 'placed' | 'drew' | 'passed' | 'resigned';
   player: number;
   count: number;
 }
@@ -232,7 +232,8 @@ export function decodeNewGame(text: string): NewGameRequest | null {
   const level = p[6] as AiLevel;
   if (!['BEGINNER', 'MEDIUM', 'HARD', 'EXPERT'].includes(level)) return null;
   const [seats, jokers, handSize, initialMeldMin, randomStart] = n;
-  if (seats < 2 || seats > 4 || limit < MIN_LIMIT_SECONDS || limit > MAX_LIMIT_SECONDS) return null;
+  // Frist 0 = unbegrenzt
+  if (seats < 2 || seats > 4 || (limit !== 0 && (limit < MIN_LIMIT_SECONDS || limit > MAX_LIMIT_SECONDS))) return null;
   return { seats, rules: { jokers, handSize, initialMeldMin, randomStart: randomStart === 1 }, fillLevel: level, limitSeconds: limit };
 }
 

@@ -32,6 +32,7 @@ export const MAX_ACCOUNTS = 100_000;
 export const FINISHED_KEEP_MS = 30 * 24 * 3600 * 1000;
 export const LOBBY_KEEP_MS = 7 * 24 * 3600 * 1000;
 /** Laufende Partien, deren Zugfrist seit so langer Zeit abgelaufen ist, ohne dass jemand nachgesehen hat. */
+export { NO_LIMIT_IDLE_KEEP_MS } from './store';
 export const IDLE_GAME_KEEP_MS = 30 * 24 * 3600 * 1000;
 /** Konten ohne Nutzung werden nach dieser Zeit gelöscht. */
 export const INACTIVE_ACCOUNT_MS = 365 * 24 * 3600 * 1000;
@@ -709,6 +710,7 @@ export class Service {
         return outcome.reply;
       }
       if (JSON.stringify(game) === before) return outcome.reply;
+      game.touchedAt = this.clock();
       if (await this.store.saveGame(game, stored.version)) {
         this.notifyTurn(game, prev, actor);
         if (game.status === 'FINISHED' && prev.status !== 'FINISHED') await this.recordFinish(game);
@@ -803,7 +805,10 @@ export class Service {
     g.deadlineAt = g.limitSeconds > 0 ? this.clock() + g.limitSeconds * 1000 : 0;
   }
 
-  /** Abgelaufene Zugfristen: automatisch ziehen; nach MAX_MISSES Versäumnissen übernimmt eine KI den Platz. */
+  /**
+   * Abgelaufene Zugfristen: automatisch ziehen. Bei Partien mit mehr als zwei Plätzen übernimmt nach MAX_MISSES
+   * Versäumnissen in Folge der Computer den Platz, bei zwei Plätzen nie (es wird nur gezogen).
+   */
   private sweep(g: Game): void {
     let guard = 0;
     while (g.status === 'RUNNING' && g.deadlineAt > 0 && this.clock() > g.deadlineAt && g.state && guard++ < 50) {
@@ -814,9 +819,22 @@ export class Service {
       slot.misses++;
       const hadPool = state.pool.length > 0;
       this.apply(g, drawOrPass(state), { kind: hadPool ? 'drew' : 'passed', player: seat, count: 0 });
-      if (slot.misses >= MAX_MISSES) this.replaceByAi(g, slot);
+      if (g.slots.length > 2 && slot.misses >= MAX_MISSES) this.replaceByAi(g, slot);
       this.advanceAi(g);
     }
+  }
+
+  /** Aufgabe in einer Partie zu zweit: Sie endet, der andere Platz gewinnt; der Aufgebende bleibt in der Partie eingetragen. */
+  private endByResign(g: Game, seat: number): void {
+    const state = g.state;
+    if (!state || seat < 0) return;
+    const winner = (seat + 1) % g.slots.length;
+    g.state = { ...state, finished: true, winner };
+    g.status = 'FINISHED';
+    g.finishedAt = this.clock();
+    g.deadlineAt = 0;
+    g.turn++;
+    g.event = { kind: 'resigned', player: seat, count: 0 };
   }
 
   private replaceByAi(g: Game, slot: Slot): void {
@@ -841,8 +859,13 @@ export class Service {
       return { reply: gone };
     }
     if (g.status === 'RUNNING') {
-      this.replaceByAi(g, slot);
-      this.advanceAi(g);
+      if (g.slots.length > 2) {
+        // Mit mehr als zwei Plätzen läuft die Partie weiter: ein Computer übernimmt den Platz.
+        this.replaceByAi(g, slot);
+        this.advanceAi(g);
+      } else {
+        this.endByResign(g, g.slots.indexOf(slot));
+      }
       return { reply: gone };
     }
     slot.accountId = null;

@@ -138,7 +138,7 @@ describe('Partien', () => {
     throw new Error('keine passende Gruppe gefunden');
   });
 
-  it('ziehen bei abgelaufener Frist automatisch; nach drei Versäumnissen übernimmt eine KI', async () => {
+  it('zu zweit wird bei abgelaufener Frist nur gezogen, der Computer übernimmt nie', async () => {
     const { service, clock, a, b, game } = await twoPlayers(60);
     const [slow, quick] = await turnOwner(service, a, b, game);
     clock.now += 61_000;
@@ -151,17 +151,75 @@ describe('Partien', () => {
     v = await viewOf(service, quick.id, game);
     await service.move(quick.id, game, { turn: v.turn, table: null });
     clock.now += 61_000;
+    await service.move(quick.id, game, { turn: (await viewOf(service, quick.id, game)).turn, table: null }).catch(() => undefined);
+    clock.now += 61_000;
     v = await viewOf(service, quick.id, game);
-    expect(v.seats.some((s) => s.ai !== null && s.name.endsWith('(KI)'))).toBe(true);
-    expect((await service.view(slow.id, game)).error).toBe('forbidden');
+    expect(v.seats.some((s) => s.ai !== null)).toBe(false);
+    expect((await service.view(slow.id, game)).error).toBeNull();
   });
 
-  it('Aufgeben setzt eine KI ein; sind nur noch KI da, endet die Partie', async () => {
+  it('mit mehr als zwei Plätzen übernimmt nach drei Versäumnissen der Computer', async () => {
+    const ctx = setup();
+    const a = (await ctx.service.createAccount())!;
+    const b = (await ctx.service.createAccount())!;
+    const c = (await ctx.service.createAccount())!;
+    const created = (await ctx.service.createGame(a.id, req(3, 60))).view!;
+    await ctx.service.join(b.id, created.code);
+    await ctx.service.join(c.id, created.code);
+    // Alle verpassen die Frist immer wieder: reihum wird gezogen, nach drei Versäumnissen je Platz übernimmt der Computer
+    for (let i = 0; i < 12; i++) {
+      ctx.clock.now += 61_000;
+      await ctx.service.view(a.id, created.id);
+    }
+    const v = (await ctx.service.view(a.id, created.id)).view;
+    // Der Betrachter selbst wurde ebenfalls ersetzt oder die Partie läuft mit Computerplätzen weiter
+    const seats = v ? v.seats : (await ctx.store.loadGame(created.id))!.game.slots;
+    expect(seats.some((x: { ai: string | null }) => x.ai !== null)).toBe(true);
+  });
+
+  it('Aufgeben zu zweit beendet die Partie als aufgegeben, der andere gewinnt, kein Computer', async () => {
     const { service, a, b, game } = await twoPlayers();
+    const seatA = (await viewOf(service, a.id, game)).mySeat;
     await service.resign(a.id, game);
-    expect((await viewOf(service, b.id, game)).status).toBe('RUNNING');
-    await service.resign(b.id, game);
+    const vb = await viewOf(service, b.id, game);
+    expect(vb.status).toBe('FINISHED');
+    expect(vb.event).toMatchObject({ kind: 'resigned', player: seatA });
+    expect(vb.result!.winner).toBe(vb.mySeat);
+    expect(vb.seats.some((s) => s.ai !== null)).toBe(false);
+    // Der Aufgebende sieht die beendete Partie weiter und kann sie später verlassen
+    expect(await service.list(a.id)).toHaveLength(1);
+    await service.resign(a.id, game);
     expect(await service.list(a.id)).toHaveLength(0);
+  });
+
+  it('Aufgeben mit drei Plätzen: der Computer übernimmt, die Partie läuft weiter', async () => {
+    const ctx = setup();
+    const a = (await ctx.service.createAccount())!;
+    const b = (await ctx.service.createAccount())!;
+    const created = (await ctx.service.createGame(a.id, req(3))).view!;
+    await ctx.service.join(b.id, created.code);
+    await ctx.service.start(a.id, created.id);
+    await ctx.service.resign(a.id, created.id);
+    const vb = (await ctx.service.view(b.id, created.id)).view!;
+    expect(vb.status).toBe('RUNNING');
+    expect(vb.seats.some((x) => x.ai !== null && x.name.endsWith('(KI)'))).toBe(true);
+  });
+
+  it('ohne Zugfrist gibt es nie eine Frist, nur nach 90 Tagen Ruhe wird die Partie gelöscht', async () => {
+    const { service, clock, a, b, game, store } = await twoPlayers(0);
+    clock.now += 365 * 24 * 3600 * 1000;
+    expect((await viewOf(service, a.id, game)).deadlineAt).toBe(0);
+    expect((await viewOf(service, a.id, game)).rack).toHaveLength(14);
+    // eine Änderung setzt die Ruhe zurück
+    const [who] = await turnOwner(service, a, b, game);
+    const v = await viewOf(service, who.id, game);
+    await service.move(who.id, game, { turn: v.turn, table: null });
+    clock.now += 89 * 24 * 3600 * 1000;
+    await service.maintenance();
+    expect(await store.loadGame(game)).not.toBeNull();
+    clock.now += 2 * 24 * 3600 * 1000;
+    await service.maintenance();
+    expect(await store.loadGame(game)).toBeNull();
   });
 
   it('Ersteller startet mit KI, andere nicht; Code ist groß/klein egal', async () => {
@@ -178,13 +236,15 @@ describe('Partien', () => {
     expect((await service.join(b.id, c.code.toLowerCase())).error).toBeNull();
   });
 
-  it('Konto löschen entfernt es und gibt Partien auf', async () => {
+  it('Konto löschen entfernt es und gibt Partien auf: zu zweit endet die Partie als aufgegeben', async () => {
     const { service, a, b, game } = await twoPlayers();
+    const seatA = (await viewOf(service, a.id, game)).mySeat;
     expect(await service.deleteAccount(a.id)).toBe(true);
     expect(await service.authenticate(a.id, a.secret)).toBe(false);
     const v = await viewOf(service, b.id, game);
-    expect(v.status).toBe('RUNNING');
-    expect(v.seats.some((s) => s.ai !== null)).toBe(true);
+    expect(v.status).toBe('FINISHED');
+    expect(v.event).toMatchObject({ kind: 'resigned', player: seatA });
+    expect(v.seats.some((s) => s.ai !== null)).toBe(false);
   });
 
   it('gleichzeitige Einreichungen derselben Partie führen höchstens einen Zug aus', async () => {

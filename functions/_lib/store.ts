@@ -24,6 +24,8 @@ export interface Game {
   deadlineAt: number;
   finishedAt: number;
   createdAt: number;
+  /** Zeitpunkt der letzten Änderung; fehlt bei älteren Partien. */
+  touchedAt?: number;
 }
 
 export interface Account {
@@ -172,6 +174,9 @@ export interface Store {
   /** Alte beendete, nie gestartete und seit langem ruhende Partien löschen. */
   purge(now: number, finishedKeepMs: number, lobbyKeepMs: number, idleKeepMs: number): Promise<void>;
 }
+
+/** Laufende Partien ohne Zugfrist werden gelöscht, wenn so lange nichts mehr passiert ist. */
+export const NO_LIMIT_IDLE_KEEP_MS = 90 * 24 * 3600 * 1000;
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
@@ -394,7 +399,9 @@ export class MemoryStore implements Store {
   async purge(now: number, finishedKeepMs: number, lobbyKeepMs: number, idleKeepMs: number) {
     for (const [id, s] of this.games) {
       const g = s.game;
-      const idle = g.status === 'RUNNING' && g.deadlineAt > 0 && now - g.deadlineAt > idleKeepMs;
+      const idle =
+        g.status === 'RUNNING' &&
+        ((g.deadlineAt > 0 && now - g.deadlineAt > idleKeepMs) || (g.deadlineAt === 0 && (g.touchedAt ?? 0) > 0 && now - (g.touchedAt ?? 0) > NO_LIMIT_IDLE_KEEP_MS));
       if ((g.status === 'FINISHED' && now - g.finishedAt > finishedKeepMs) || (g.status === 'LOBBY' && now - g.createdAt > lobbyKeepMs) || idle) this.games.delete(id);
     }
   }
@@ -649,8 +656,8 @@ export class D1Store implements Store {
   async insertGame(game: Game) {
     try {
       await this.db
-        .prepare('INSERT INTO games (id, code, status, version, data, created_at, finished_at, deadline_at) VALUES (?, ?, ?, 1, ?, ?, ?, ?)')
-        .bind(game.id, game.code, game.status, JSON.stringify(game), game.createdAt, game.finishedAt, game.deadlineAt)
+        .prepare('INSERT INTO games (id, code, status, version, data, created_at, finished_at, deadline_at, touched_at) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)')
+        .bind(game.id, game.code, game.status, JSON.stringify(game), game.createdAt, game.finishedAt, game.deadlineAt, game.touchedAt ?? 0)
         .run();
       await this.writePlayers(game);
       return true;
@@ -660,8 +667,8 @@ export class D1Store implements Store {
   }
   async saveGame(game: Game, version: number) {
     const r = await this.db
-      .prepare('UPDATE games SET code = ?, status = ?, version = version + 1, data = ?, finished_at = ?, deadline_at = ? WHERE id = ? AND version = ?')
-      .bind(game.code, game.status, JSON.stringify(game), game.finishedAt, game.deadlineAt, game.id, version)
+      .prepare('UPDATE games SET code = ?, status = ?, version = version + 1, data = ?, finished_at = ?, deadline_at = ?, touched_at = ? WHERE id = ? AND version = ?')
+      .bind(game.code, game.status, JSON.stringify(game), game.finishedAt, game.deadlineAt, game.touchedAt ?? 0, game.id, version)
       .run();
     if (r.meta.changes !== 1) return false;
     await this.writePlayers(game);
@@ -700,9 +707,9 @@ export class D1Store implements Store {
     for (let round = 0; round < 5; round++) {
       const old = await this.db
         .prepare(
-          "SELECT id FROM games WHERE (status = 'FINISHED' AND finished_at < ?) OR (status = 'LOBBY' AND created_at < ?) OR (status = 'RUNNING' AND deadline_at > 0 AND deadline_at < ?) LIMIT 100",
+          "SELECT id FROM games WHERE (status = 'FINISHED' AND finished_at < ?) OR (status = 'LOBBY' AND created_at < ?) OR (status = 'RUNNING' AND deadline_at > 0 AND deadline_at < ?) OR (status = 'RUNNING' AND deadline_at = 0 AND touched_at > 0 AND touched_at < ?) LIMIT 100",
         )
-        .bind(now - finishedKeepMs, now - lobbyKeepMs, now - idleKeepMs)
+        .bind(now - finishedKeepMs, now - lobbyKeepMs, now - idleKeepMs, now - NO_LIMIT_IDLE_KEEP_MS)
         .all<{ id: string }>();
       for (const r of old.results) await this.deleteGame(r.id);
       if (old.results.length < 100) break;
