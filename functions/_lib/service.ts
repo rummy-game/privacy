@@ -22,6 +22,8 @@ import type { Pusher } from './push';
 import type { Game, ReportEntry, Slot, Store, Stored } from './store';
 
 export const MAX_MISSES = 3;
+/** Höchstens so viele Plätze füllt beim Start der Computer (schont die Rechenzeit des Dienstes). */
+export const MAX_AI_FILL = 1;
 /** Ab diesem Zeitpunkt gilt der feste Testcode nicht mehr, auch wenn die Secrets noch gesetzt sind (31.12.2026). */
 export const TEST_LOGIN_UNTIL = Date.UTC(2026, 11, 31);
 const TEST_DOMAIN = '@rummy-test.invalid';
@@ -573,6 +575,9 @@ export class Service {
       (g) => {
         if (g.creatorId !== accountId) return { reply: fail('forbidden', 'Nur der Ersteller startet') };
         if (g.status !== 'LOBBY') return { reply: fail('notlobby') };
+        if (g.slots.filter((s) => this.isOpen(s)).length > MAX_AI_FILL) {
+          return { reply: fail('toomanyai', 'Höchstens ein Computerplatz: es fehlen noch Mitspieler') };
+        }
         this.begin(g);
         return { reply: this.ok(g, accountId) };
       },

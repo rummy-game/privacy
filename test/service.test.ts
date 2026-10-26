@@ -228,9 +228,12 @@ describe('Partien', () => {
     const b = (await service.createAccount())!;
     const created = (await service.createGame(a.id, req(3, 3600, 'MEDIUM'))).view!;
     expect((await service.start(b.id, created.id)).error).toBe('forbidden');
+    // Zwei freie Plätze: höchstens ein Computerplatz, also kein Start
+    expect((await service.start(a.id, created.id)).error).toBe('toomanyai');
+    await service.join(b.id, created.code);
     const started = await service.start(a.id, created.id);
     expect(started.view!.status).toBe('RUNNING');
-    expect(started.view!.seats.filter((s) => s.ai !== null)).toHaveLength(2);
+    expect(started.view!.seats.filter((s) => s.ai !== null)).toHaveLength(1);
     const c = (await service.createGame(a.id, req())).view!;
     expect((await service.join(b.id, 'XXXXXX')).error).toBe('notfound');
     expect((await service.join(b.id, c.code.toLowerCase())).error).toBeNull();
