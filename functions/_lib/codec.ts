@@ -147,6 +147,11 @@ export function encodeRecords(list: Array<{ opponentId: string; wins: number; lo
   return ['RUMMY-RECORDS 1', ...list.map((r) => `record ${r.opponentId} ${r.wins} ${r.losses} ${r.draws}`), 'end'].join('\n') + '\n';
 }
 
+/** Wochenkontingent: `limit 0` = unbegrenzt (Premium). */
+export function encodeQuota(q: { used: number; limit: number; premium: boolean; resetAt: number }): string {
+  return `RUMMY-QUOTA 1\nquota ${q.used} ${q.limit} ${q.premium ? 1 : 0} ${q.resetAt}\nend\n`;
+}
+
 /** `blocked <id> <name>` je Zeile. */
 export function encodeBlocks(list: Array<{ id: string; name: string }>): string {
   return ['RUMMY-BLOCKS 1', ...list.map((p) => `blocked ${p.id} ${clean(p.name)}`), 'end'].join('\n') + '\n';

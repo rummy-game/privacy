@@ -30,6 +30,18 @@ const TEST_DOMAIN = '@rummy-test.invalid';
 export const MAX_REPORTS_PER_DAY = 20;
 const REPORT_KEEP_MS = 90 * 24 * 3600 * 1000;
 export const MAX_ACTIVE_GAMES = 10;
+/** Gestartete Online-Partien je Woche ohne Premium. */
+export const FREE_WEEKLY_GAMES = 5;
+const DAY_MS = 24 * 3600 * 1000;
+
+/** Kalenderwoche (Montag bis Sonntag, UTC) als fortlaufende Nummer; der 1.1.1970 war ein Donnerstag. */
+export function weekOf(ms: number): number {
+  return Math.floor((Math.floor(ms / DAY_MS) + 3) / 7);
+}
+/** Beginn der Woche nach [week] in Epoch-Millisekunden. */
+export function weekEnd(week: number): number {
+  return ((week + 1) * 7 - 3) * DAY_MS;
+}
 export const MAX_ACCOUNTS = 100_000;
 export const FINISHED_KEEP_MS = 30 * 24 * 3600 * 1000;
 export const LOBBY_KEEP_MS = 7 * 24 * 3600 * 1000;
@@ -300,6 +312,9 @@ export class Service {
     if (!(await this.store.hasInvite(gameId, accountId))) return fail('notfound', 'Keine Einladung');
     const account = await this.store.getAccount(accountId);
     if (!account) return fail('unknown');
+    if (!(await this.hasQuota(accountId))) return fail('quota', 'Wochenkontingent aufgebraucht');
+    const host = (await this.store.loadGame(gameId))?.game.creatorId;
+    if (host && !(await this.hasQuota(host))) return fail('hostquota', 'Der Gastgeber hat sein Wochenkontingent aufgebraucht');
     if ((await this.activeCount(accountId)) >= MAX_ACTIVE_GAMES) return fail('limit', 'Zu viele laufende Partien');
     const lobby = await this.store.loadGame(gameId);
     if (lobby && (await this.blockedInGame(accountId, lobby.game))) {
@@ -509,6 +524,7 @@ export class Service {
     if (r.jokers < 0 || r.jokers > 2 || r.handSize < 7 || r.handSize > 20 || r.initialMeldMin < 0 || r.initialMeldMin > 60) return fail('invalid', 'rules');
     if (req.seats * r.handSize >= fullDeck(r.jokers).length) return fail('invalid', 'rules');
     if ((await this.activeCount(accountId)) >= MAX_ACTIVE_GAMES) return fail('limit', 'Zu viele laufende Partien');
+    if (!(await this.hasQuota(accountId))) return fail('quota', 'Wochenkontingent aufgebraucht');
 
     const slots: Slot[] = Array.from({ length: req.seats }, () => ({ accountId: null, name: '', ai: null, misses: 0 }));
     slots[0] = { accountId, name: account.name, ai: null, misses: 0 };
@@ -543,6 +559,8 @@ export class Service {
     const found = await this.store.findLobbyByCode(code.trim().toUpperCase().slice(0, 16));
     if (!found) return fail('notfound', 'Kein offenes Spiel mit diesem Code');
     if ((await this.activeCount(accountId)) >= MAX_ACTIVE_GAMES) return fail('limit', 'Zu viele laufende Partien');
+    if (!(await this.hasQuota(accountId))) return fail('quota', 'Wochenkontingent aufgebraucht');
+    if (!(await this.hasQuota(found.game.creatorId))) return fail('hostquota', 'Der Gastgeber hat sein Wochenkontingent aufgebraucht');
     // Wer einen Mitspieler blockiert hat oder von ihm blockiert wurde, sieht nur „kein offenes Spiel“.
     if (await this.blockedInGame(accountId, found.game)) return fail('notfound', 'Kein offenes Spiel mit diesem Code');
     const reply = await this.joinLobby(accountId, account.name, found.game.id);
@@ -572,6 +590,7 @@ export class Service {
 
   /** Der Ersteller startet früher; freie Plätze füllt eine KI. */
   async start(accountId: string, gameId: string): Promise<OnlineReply> {
+    if (!(await this.hasQuota(accountId))) return fail('quota', 'Wochenkontingent aufgebraucht');
     return this.transact(
       gameId,
       (g) => {
@@ -680,12 +699,48 @@ export class Service {
     await this.store.purgeCodes(now - 24 * HOUR_MS);
     await this.store.purgeReports(now - REPORT_KEEP_MS);
     await this.store.purgeLimits(24 * HOUR_MS, now);
+    await this.store.purgeUsage(weekOf(now) - 1);
     // Ist der Testzugang nicht mehr aktiv, werden dessen Konten entfernt.
     if (!this.testLoginActive()) for (const id of await this.store.accountsWithEmailSuffix(TEST_DOMAIN)) await this.deleteAccount(id);
     for (const id of await this.store.staleAccounts(now - INACTIVE_ACCOUNT_MS)) await this.deleteAccount(id);
   }
 
   // --- intern ---
+
+  // --- Wochenkontingent ---
+
+  async isPremium(accountId: string): Promise<boolean> {
+    return (await this.store.premiumUntil(accountId)) > this.clock();
+  }
+
+  async quota(accountId: string): Promise<{ used: number; limit: number; premium: boolean; resetAt: number }> {
+    const week = weekOf(this.clock());
+    const premium = await this.isPremium(accountId);
+    return { used: await this.store.usageOf(accountId, week), limit: premium ? 0 : FREE_WEEKLY_GAMES, premium, resetAt: weekEnd(week) };
+  }
+
+  private async hasQuota(accountId: string): Promise<boolean> {
+    const q = await this.quota(accountId);
+    return q.premium || q.used < q.limit;
+  }
+
+  /** Premium bis zum angegebenen Zeitpunkt (geprüfter Kauf oder Betreiber). */
+  async grantPremium(accountId: string, until: number, source: string): Promise<boolean> {
+    if (!(await this.store.getAccount(accountId))) return false;
+    await this.store.setPremium(accountId, until, source);
+    return true;
+  }
+
+  /** Premium für [days] Tage ab jetzt, 0 = beenden. */
+  async grantPremiumDays(accountId: string, days: number, source: string): Promise<boolean> {
+    return this.grantPremium(accountId, days === 0 ? 0 : this.clock() + days * DAY_MS, source);
+  }
+
+  /** Eine gestartete Partie zählt für jeden Menschen am Tisch. */
+  private async countStart(g: Game): Promise<void> {
+    const week = weekOf(this.clock());
+    for (const s of g.slots) if (s.accountId) await this.store.addUsage(s.accountId, week);
+  }
 
   private isOpen(s: Slot) {
     return s.accountId === null && s.ai === null;
@@ -719,6 +774,7 @@ export class Service {
       if (JSON.stringify(game) === before) return outcome.reply;
       game.touchedAt = this.clock();
       if (await this.store.saveGame(game, stored.version)) {
+        if (prev.status === 'LOBBY' && game.status !== 'LOBBY') await this.countStart(game);
         this.notifyTurn(game, prev, actor);
         if (game.status === 'FINISHED' && prev.status !== 'FINISHED') await this.recordFinish(game);
         return outcome.reply;

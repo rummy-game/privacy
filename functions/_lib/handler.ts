@@ -1,6 +1,6 @@
 // HTTP-Schicht über dem Dienst: dieselben Endpunkte wie der Kotlin-Server (`HttpApi.kt`).
 
-import { decodeAuthStart, decodeAuthVerify, decodeMove, decodeNewGame, decodePush, decodeSeatAction, encodeAccount, encodeBlocks, encodeInvites, encodePartners, encodeRecords, encodeReply, encodeSummaries } from './codec';
+import { decodeAuthStart, decodeAuthVerify, decodeMove, decodeNewGame, decodePush, decodeSeatAction, encodeAccount, encodeBlocks, encodeInvites, encodePartners, encodeQuota, encodeRecords, encodeReply, encodeSummaries } from './codec';
 import type { OnlineReply } from './codec';
 import type { Service } from './service';
 
@@ -63,6 +63,11 @@ export async function handleApi(request: Request, service: Service, maintenanceT
     const field = (key: string) => new RegExp(`^${key} (.+)$`, 'm').exec(raw.replace(/\r/g, ''))?.[1]?.trim() ?? '';
     if (method === 'POST' && path === 'admin/ban') return text((await service.adminBan(field('account'), field('reason') || 'abuse')) ? 'ok\n' : 'error notfound\n');
     if (method === 'POST' && path === 'admin/unban') return text((await service.adminUnban(field('email'))) ? 'ok\n' : 'error invalid\n');
+    if (method === 'POST' && path === 'admin/premium') {
+      const days = Number(field('days'));
+      if (!Number.isFinite(days) || days < 0 || days > 3660) return text('error invalid request\n', 400);
+      return text((await service.grantPremiumDays(field('account'), days, 'admin')) ? 'ok\n' : 'error notfound\n');
+    }
     if (method === 'POST' && path === 'admin/dismiss') {
       await service.adminDismiss(Number(field('report')));
       return text('ok\n');
@@ -120,6 +125,7 @@ export async function handleApi(request: Request, service: Service, maintenanceT
     await service.unblock(id, parts[1]);
     return text('ok\n');
   }
+  if (method === 'GET' && path === 'quota') return text(encodeQuota(await service.quota(id)));
   if (method === 'GET' && path === 'records') return text(encodeRecords(await service.records(id)));
   if (method === 'GET' && path === 'partners') return text(encodePartners(await service.partners(id)));
   if (method === 'DELETE' && parts.length === 2 && parts[0] === 'partners') {

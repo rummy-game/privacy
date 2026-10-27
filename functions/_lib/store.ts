@@ -163,6 +163,14 @@ export interface Store {
   addRecord(accountId: string, opponentId: string, outcome: 'win' | 'loss' | 'draw'): Promise<void>;
   recordsOf(accountId: string): Promise<RecordEntry[]>;
 
+  /** Wochenkontingent: gestartete Online-Partien je Konto und Woche. */
+  addUsage(accountId: string, week: number): Promise<void>;
+  usageOf(accountId: string, week: number): Promise<number>;
+  purgeUsage(beforeWeek: number): Promise<void>;
+  /** Premium-Berechtigung (Ende in Epoch-Millisekunden), 0 = keine. */
+  premiumUntil(accountId: string): Promise<number>;
+  setPremium(accountId: string, until: number, source: string): Promise<void>;
+
   /** Zählt einen Zugriff im Fenster [window] des Schlüssels [key] und liefert den neuen Stand. */
   hit(key: string, window: number): Promise<number>;
   /** Löscht Zähler, deren Fenster vor [before] (Fensternummer in Millisekunden, grob) liegt. */
@@ -201,6 +209,8 @@ export class MemoryStore implements Store {
   bans = new Set<string>();
   limits = new Map<string, number>();
   recordMap = new Map<string, RecordEntry>();
+  usage = new Map<string, number>();
+  premium = new Map<string, number>();
 
   async createAccount(a: Account) {
     if (this.accounts.has(a.id) || [...this.accounts.values()].some((x) => x.name === a.name)) return false;
@@ -262,6 +272,8 @@ export class MemoryStore implements Store {
     this.blocks.delete(id);
     for (const set of this.blocks.values()) set.delete(id);
     for (const k of [...this.recordMap.keys()]) if (k.startsWith(`${id}>`) || k.endsWith(`>${id}`)) this.recordMap.delete(k);
+    for (const k of [...this.usage.keys()]) if (k.startsWith(`${id}#`)) this.usage.delete(k);
+    this.premium.delete(id);
     this.invites = this.invites.filter((i) => i.to !== id && i.from !== id);
   }
   async addRecord(accountId: string, opponentId: string, outcome: 'win' | 'loss' | 'draw') {
@@ -274,6 +286,22 @@ export class MemoryStore implements Store {
   }
   async recordsOf(accountId: string) {
     return [...this.recordMap.entries()].filter(([k]) => k.startsWith(`${accountId}>`)).map(([, v]) => ({ ...v }));
+  }
+  async addUsage(accountId: string, week: number) {
+    const k = `${accountId}#${week}`;
+    this.usage.set(k, (this.usage.get(k) ?? 0) + 1);
+  }
+  async usageOf(accountId: string, week: number) {
+    return this.usage.get(`${accountId}#${week}`) ?? 0;
+  }
+  async purgeUsage(beforeWeek: number) {
+    for (const k of [...this.usage.keys()]) if (Number(k.split('#')[1]) < beforeWeek) this.usage.delete(k);
+  }
+  async premiumUntil(accountId: string) {
+    return this.premium.get(accountId) ?? 0;
+  }
+  async setPremium(accountId: string, until: number) {
+    this.premium.set(accountId, until);
   }
   async hit(key: string, window: number) {
     const k = `${key}#${window}`;
@@ -502,6 +530,23 @@ export class D1Store implements Store {
       .all<{ opponent_id: string; wins: number; losses: number; draws: number }>();
     return r.results.map((x) => ({ opponentId: x.opponent_id, wins: x.wins, losses: x.losses, draws: x.draws }));
   }
+  async addUsage(accountId: string, week: number) {
+    await this.db.prepare('INSERT INTO usage (account_id, week, n) VALUES (?, ?, 1) ON CONFLICT(account_id, week) DO UPDATE SET n = n + 1').bind(accountId, week).run();
+  }
+  async usageOf(accountId: string, week: number) {
+    const r = await this.db.prepare('SELECT n FROM usage WHERE account_id = ? AND week = ?').bind(accountId, week).first<{ n: number }>();
+    return r?.n ?? 0;
+  }
+  async purgeUsage(beforeWeek: number) {
+    await this.db.prepare('DELETE FROM usage WHERE week < ?').bind(beforeWeek).run();
+  }
+  async premiumUntil(accountId: string) {
+    const r = await this.db.prepare('SELECT until FROM entitlements WHERE account_id = ?').bind(accountId).first<{ until: number }>();
+    return r?.until ?? 0;
+  }
+  async setPremium(accountId: string, until: number, source: string) {
+    await this.db.prepare('INSERT INTO entitlements (account_id, until, source) VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET until = excluded.until, source = excluded.source').bind(accountId, until, source).run();
+  }
   async hit(key: string, window: number) {
     await this.db.prepare('INSERT INTO rate_limits (key, window, n) VALUES (?, ?, 1) ON CONFLICT(key, window) DO UPDATE SET n = n + 1').bind(key, window).run();
     const r = await this.db.prepare('SELECT n FROM rate_limits WHERE key = ? AND window = ?').bind(key, window).first<{ n: number }>();
@@ -640,6 +685,8 @@ export class D1Store implements Store {
       this.db.prepare('DELETE FROM partners WHERE account_id = ? OR partner_id = ?').bind(id, id),
       this.db.prepare('DELETE FROM blocks WHERE account_id = ? OR blocked_id = ?').bind(id, id),
       this.db.prepare('DELETE FROM records WHERE account_id = ? OR opponent_id = ?').bind(id, id),
+      this.db.prepare('DELETE FROM usage WHERE account_id = ?').bind(id),
+      this.db.prepare('DELETE FROM entitlements WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM invites WHERE to_account = ? OR from_account = ?').bind(id, id),
       this.db.prepare('DELETE FROM game_players WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM account_secrets WHERE account_id = ?').bind(id),
