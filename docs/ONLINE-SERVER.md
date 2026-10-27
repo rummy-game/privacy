@@ -73,7 +73,7 @@ Offen: automatische Löschung inaktiver Konten (steht deshalb nicht in der Daten
 ## Checkliste vor dem öffentlichen Online-Start
 
 - Secrets `TEST_EMAILS` und `TEST_CODE` löschen, Test-Konten entfernen.
-- WAF-Regel für `/api/*` anlegen (Schritt 4 oben).
+- WAF-Regel: nur möglich, wenn der Dienst unter einer eigenen Domain bei Cloudflare liegt (auf `*.pages.dev` gibt es keine Zone, die Konto-WAF ist Enterprise). Entscheidung 27.10.2026: für den Start bewusst nicht gesetzt, es gilt die Ratenbegrenzung im Code; bei eigener Domain nachholen (Schritt 4 oben).
 - **Startseite anpassen** (`src/views/Home.astro`, deutsch und englisch: `description` und `privH`/`priv`): Die Aussage „ohne Konto und ohne Netzwerk“ gilt nur für die Spielarten auf dem Gerät. Neu etwa: „Auf dem Gerät ohne Konto und ohne Netzwerk; der Online-Modus ist freiwillig und braucht eine E-Mail-Adresse.“ Erst zusammen mit der App-Fassung veröffentlichen, die den Online-Modus einschaltet; die Berechtigungsaussage („keine Berechtigungen, die du erteilen musst, keine Internetverbindung“) muss ebenfalls angepasst werden.
 - Brevo-Absender prüfen (Zustellung an Gmail), ungenutzte Brevo-Schlüssel und zusätzliche Firebase-Dienstkonto-Schlüssel widerrufen.
 - Play Console: IARC (Nutzerinteraktion, Anzeigenamen, Melden/Blockieren), Data Safety (Entwurf gespeichert 27.10.2026), Store-Screenshots (Querformat, neue Farben), App-Zugriff-Hinweis.
