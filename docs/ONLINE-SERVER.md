@@ -69,3 +69,11 @@ Offen: automatische Löschung inaktiver Konten (steht deshalb nicht in der Daten
 - **Bilanz:** Am Partieende zählt der Dienst Siege, Niederlagen und Remis je Paar von Menschen (Tabelle `records`, Migration `0007_records.sql`, `GET /api/records`).
 - **Fristpause (Regel je Partie, Standard: ruht):** Die App meldet beim Verlassen und Zurückkehren (App im Hintergrund, aber auch Zurück zur Liste oder ins Menü und Öffnen einer anderen Partie) `POST games/<id>/presence` (`away 1|0`). Verlässt der Spieler am Zug die App, ruht die Frist (`pausedAt`), bei Rückkehr verschiebt sich das Fristende; kommt der Zug an einen abwesenden Spieler, beginnt die Frist erst mit seiner Rückkehr. Fehlt die Meldung, läuft die Frist weiter. Neues Feld im Befehl `newgame` (neuntes Feld) und in der Sicht (`limit … <Regel> <pausedAt>`). Der Kotlin-Referenzserver kennt die Fristpause nicht.
 - **Einspielen:** erst die Migrationen `0007` und `0008` (`npx wrangler d1 migrations apply rummy --remote`), dann deployen.
+
+## Checkliste vor dem öffentlichen Online-Start
+
+- Secrets `TEST_EMAILS` und `TEST_CODE` löschen, Test-Konten entfernen.
+- WAF-Regel für `/api/*` anlegen (Schritt 4 oben).
+- **Startseite anpassen** (`src/views/Home.astro`, deutsch und englisch: `description` und `privH`/`priv`): Die Aussage „ohne Konto und ohne Netzwerk“ gilt nur für die Spielarten auf dem Gerät. Neu etwa: „Auf dem Gerät ohne Konto und ohne Netzwerk; der Online-Modus ist freiwillig und braucht eine E-Mail-Adresse.“ Erst zusammen mit der App-Fassung veröffentlichen, die den Online-Modus einschaltet; die Berechtigungsaussage („keine Berechtigungen, die du erteilen musst, keine Internetverbindung“) muss ebenfalls angepasst werden.
+- Brevo-Absender prüfen (Zustellung an Gmail), ungenutzte Brevo-Schlüssel und zusätzliche Firebase-Dienstkonto-Schlüssel widerrufen.
+- Play Console: IARC (Nutzerinteraktion, Anzeigenamen, Melden/Blockieren), Data Safety (Entwurf gespeichert 27.10.2026), Store-Screenshots (Querformat, neue Farben), App-Zugriff-Hinweis.
