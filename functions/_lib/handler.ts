@@ -125,6 +125,14 @@ export async function handleApi(request: Request, service: Service, maintenanceT
     await service.unblock(id, parts[1]);
     return text('ok\n');
   }
+  if (method === 'POST' && path === 'premium/play') {
+    // Jeder Aufruf fragt bei Google nach: je Konto höchstens 10 pro Minute
+    if (!(await service.allow(`acct:${id}:premium`, 10, 60_000))) return tooMany();
+    const token = /^token (\S+)$/m.exec(raw.replace(/\r/g, ''))?.[1];
+    if (!token) return text('error invalid request\n', 400);
+    const r = await service.redeemPlay(id, token);
+    return text(r === 'ok' ? 'ok\n' : `error ${r}\n`);
+  }
   if (method === 'GET' && path === 'quota') return text(encodeQuota(await service.quota(id)));
   if (method === 'GET' && path === 'records') return text(encodeRecords(await service.records(id)));
   if (method === 'GET' && path === 'partners') return text(encodePartners(await service.partners(id)));

@@ -48,6 +48,30 @@ interface ServiceAccount {
 /** Zugriffstoken je Dienstkonto, bis kurz vor Ablauf wiederverwendet (gilt, solange die Worker-Instanz lebt). */
 const tokenCache = new Map<string, { token: string; expires: number }>();
 
+/** OAuth-Zugriffstoken eines Google-Dienstkontos für [scope] (JWT-Bearer-Verfahren), `null` bei Fehlern. */
+export async function googleAccessToken(a: { client_email: string; private_key: string }, scope: string, clock: () => number = Date.now): Promise<string | null> {
+  const cacheKey = `${a.client_email}|${scope}`;
+  const cached = tokenCache.get(cacheKey);
+  const now = clock();
+  if (cached && cached.expires > now + 60_000) return cached.token;
+  const iat = Math.floor(now / 1000);
+  const claims = { iss: a.client_email, scope, aud: 'https://oauth2.googleapis.com/token', iat, exp: iat + 3600 };
+  const unsigned = `${b64urlText(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64urlText(JSON.stringify(claims))}`;
+  const der = Uint8Array.from(atob(a.private_key.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${unsigned}.${b64url(sig)}` }),
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { access_token?: string; expires_in?: number };
+  if (!json.access_token) return null;
+  tokenCache.set(cacheKey, { token: json.access_token, expires: now + (json.expires_in ?? 3600) * 1000 });
+  return json.access_token;
+}
+
 export class FcmPusher implements Pusher {
   private account: ServiceAccount | null;
 
@@ -60,32 +84,8 @@ export class FcmPusher implements Pusher {
     }
   }
 
-  private async accessToken(a: ServiceAccount): Promise<string | null> {
-    const cached = tokenCache.get(a.client_email);
-    const now = this.clock();
-    if (cached && cached.expires > now + 60_000) return cached.token;
-    const iat = Math.floor(now / 1000);
-    const claims = {
-      iss: a.client_email,
-      scope: 'https://www.googleapis.com/auth/firebase.messaging',
-      aud: 'https://oauth2.googleapis.com/token',
-      iat,
-      exp: iat + 3600,
-    };
-    const unsigned = `${b64urlText(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64urlText(JSON.stringify(claims))}`;
-    const der = Uint8Array.from(atob(a.private_key.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')), (c) => c.charCodeAt(0));
-    const key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
-    const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
-    const res = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${unsigned}.${b64url(sig)}` }),
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { access_token?: string; expires_in?: number };
-    if (!json.access_token) return null;
-    tokenCache.set(a.client_email, { token: json.access_token, expires: now + (json.expires_in ?? 3600) * 1000 });
-    return json.access_token;
+  private accessToken(a: ServiceAccount): Promise<string | null> {
+    return googleAccessToken(a, 'https://www.googleapis.com/auth/firebase.messaging', this.clock);
   }
 
   async send(token: string, message: PushMessage): Promise<PushResult> {

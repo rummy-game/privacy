@@ -1,6 +1,7 @@
 import { handleApi, isAllowedHost } from '../_lib/handler';
 import { Service } from '../_lib/service';
 import { BrevoMailer, NoMailer } from '../_lib/mailer';
+import { GooglePlayVerifier, NoPlayVerifier } from '../_lib/play';
 import { FcmPusher, NoPusher } from '../_lib/push';
 import { D1Store } from '../_lib/store';
 import { cryptoRng } from '../_lib/rules';
@@ -18,6 +19,8 @@ interface Env {
   TEST_CODE?: string;
   /** Firebase-Dienstkonto (JSON) für Benachrichtigungen, als Secret; ohne den Schlüssel gibt es keine Benachrichtigungen. */
   FCM_SERVICE_ACCOUNT?: string;
+  /** Dienstkonto (JSON) mit Zugriff auf die Play-Console-Bestelldaten, prüft gekaufte Abos; ohne den Schlüssel gibt es kein Premium per Kauf. */
+  PLAY_SERVICE_ACCOUNT?: string;
   /** E-Mail-Adresse des Betreibers: bekommt bei jeder Meldung eines Spielers eine Mail (optional). */
   REPORT_TO?: string;
   /** Weitere Hostnamen (Komma-getrennt), die die API bedienen darf, z. B. eine eigene Domain. */
@@ -35,7 +38,8 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, waitUntil })
     ? { emails: new Set(env.TEST_EMAILS.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)), code: env.TEST_CODE }
     : null;
   const pusher = env.FCM_SERVICE_ACCOUNT ? new FcmPusher(env.FCM_SERVICE_ACCOUNT) : new NoPusher();
-  const service = new Service(new D1Store(env.DB), Date.now, cryptoRng, mailer, testLogin, pusher);
+  const play = env.PLAY_SERVICE_ACCOUNT ? new GooglePlayVerifier(env.PLAY_SERVICE_ACCOUNT) : new NoPlayVerifier();
+  const service = new Service(new D1Store(env.DB), Date.now, cryptoRng, mailer, testLogin, pusher, play);
   service.reportTo = env.REPORT_TO ?? '';
   try {
     const response = await handleApi(request, service, env.MAINTENANCE_TOKEN ?? '');

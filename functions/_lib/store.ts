@@ -170,6 +170,8 @@ export interface Store {
   /** Premium-Berechtigung (Ende in Epoch-Millisekunden), 0 = keine. */
   premiumUntil(accountId: string): Promise<number>;
   setPremium(accountId: string, until: number, source: string): Promise<void>;
+  /** Play-Kauf-Token (Prüfwert) → Konto; `bindPlayToken` bindet nur, wenn der Token noch frei ist, und liefert den Besitzer. */
+  bindPlayToken(tokenHash: string, accountId: string): Promise<string>;
 
   /** Zählt einen Zugriff im Fenster [window] des Schlüssels [key] und liefert den neuen Stand. */
   hit(key: string, window: number): Promise<number>;
@@ -211,6 +213,7 @@ export class MemoryStore implements Store {
   recordMap = new Map<string, RecordEntry>();
   usage = new Map<string, number>();
   premium = new Map<string, number>();
+  playTokens = new Map<string, string>();
 
   async createAccount(a: Account) {
     if (this.accounts.has(a.id) || [...this.accounts.values()].some((x) => x.name === a.name)) return false;
@@ -274,6 +277,7 @@ export class MemoryStore implements Store {
     for (const k of [...this.recordMap.keys()]) if (k.startsWith(`${id}>`) || k.endsWith(`>${id}`)) this.recordMap.delete(k);
     for (const k of [...this.usage.keys()]) if (k.startsWith(`${id}#`)) this.usage.delete(k);
     this.premium.delete(id);
+    for (const [k, v] of [...this.playTokens]) if (v === id) this.playTokens.delete(k);
     this.invites = this.invites.filter((i) => i.to !== id && i.from !== id);
   }
   async addRecord(accountId: string, opponentId: string, outcome: 'win' | 'loss' | 'draw') {
@@ -299,6 +303,12 @@ export class MemoryStore implements Store {
   }
   async premiumUntil(accountId: string) {
     return this.premium.get(accountId) ?? 0;
+  }
+  async bindPlayToken(tokenHash: string, accountId: string) {
+    const owner = this.playTokens.get(tokenHash);
+    if (owner) return owner;
+    this.playTokens.set(tokenHash, accountId);
+    return accountId;
   }
   async setPremium(accountId: string, until: number) {
     this.premium.set(accountId, until);
@@ -544,6 +554,11 @@ export class D1Store implements Store {
     const r = await this.db.prepare('SELECT until FROM entitlements WHERE account_id = ?').bind(accountId).first<{ until: number }>();
     return r?.until ?? 0;
   }
+  async bindPlayToken(tokenHash: string, accountId: string) {
+    await this.db.prepare('INSERT OR IGNORE INTO play_tokens (token_hash, account_id) VALUES (?, ?)').bind(tokenHash, accountId).run();
+    const r = await this.db.prepare('SELECT account_id FROM play_tokens WHERE token_hash = ?').bind(tokenHash).first<{ account_id: string }>();
+    return r?.account_id ?? accountId;
+  }
   async setPremium(accountId: string, until: number, source: string) {
     await this.db.prepare('INSERT INTO entitlements (account_id, until, source) VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET until = excluded.until, source = excluded.source').bind(accountId, until, source).run();
   }
@@ -687,6 +702,7 @@ export class D1Store implements Store {
       this.db.prepare('DELETE FROM records WHERE account_id = ? OR opponent_id = ?').bind(id, id),
       this.db.prepare('DELETE FROM usage WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM entitlements WHERE account_id = ?').bind(id),
+      this.db.prepare('DELETE FROM play_tokens WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM invites WHERE to_account = ? OR from_account = ?').bind(id, id),
       this.db.prepare('DELETE FROM game_players WHERE account_id = ?').bind(id),
       this.db.prepare('DELETE FROM account_secrets WHERE account_id = ?').bind(id),

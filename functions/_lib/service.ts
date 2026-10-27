@@ -17,6 +17,8 @@ import {
   Rng,
   scores,
 } from './rules';
+import { NoPlayVerifier, PREMIUM_PRODUCT } from './play';
+import type { PlayVerifier } from './play';
 import { NoPusher, pushText } from './push';
 import type { Pusher } from './push';
 import type { Game, ReportEntry, Slot, Store, Stored } from './store';
@@ -120,6 +122,7 @@ export class Service {
     private mailer: Mailer = new NoMailer(),
     private testLogin: TestLogin | null = null,
     private pusher: Pusher = new NoPusher(),
+    private play: PlayVerifier = new NoPlayVerifier(),
   ) {}
 
   /** Adresse des Betreibers für Meldungen (leer = keine Mail; die Meldungen bleiben abrufbar). */
@@ -729,6 +732,20 @@ export class Service {
     if (!(await this.store.getAccount(accountId))) return false;
     await this.store.setPremium(accountId, until, source);
     return true;
+  }
+
+  /**
+   * Löst einen Google-Play-Kauf ein: Der Server fragt bei Google nach, ob das Abo für dieses Konto gilt, und setzt
+   * Premium bis zum Ende der bezahlten Laufzeit. `unavailable`: Google nicht erreichbar oder Token unbekannt.
+   */
+  async redeemPlay(accountId: string, purchaseToken: string): Promise<'ok' | 'invalid' | 'unavailable' | 'inactive' | 'foreign'> {
+    const sub = await this.play.verify(purchaseToken);
+    if (!sub) return 'unavailable';
+    if (!sub.productIds.includes(PREMIUM_PRODUCT)) return 'invalid';
+    if (sub.accountId !== accountId) return 'foreign';
+    if ((await this.store.bindPlayToken(await sha256(purchaseToken), accountId)) !== accountId) return 'foreign';
+    if (!sub.active) return 'inactive';
+    return (await this.grantPremium(accountId, sub.expiresAt, 'play')) ? 'ok' : 'invalid';
   }
 
   /** Premium für [days] Tage ab jetzt, 0 = beenden. */
