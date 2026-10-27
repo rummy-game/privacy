@@ -8,19 +8,29 @@ const { lang } = Astro.props as { lang: Lang };
 {lang === 'de' ? (
   <Base lang="de" page="terms" title="Nutzungsbedingungen – Rummy" description="Nutzungsbedingungen für den Online-Modus der Android-App Rummy.">
     <h1>Nutzungsbedingungen für den Online-Modus</h1>
-    <p class="meta">Stand: 26. Oktober 2026. Diese Bedingungen gelten für den Online-Modus der Android-App <strong>Rummy</strong>. Die Spielarten ohne Netzwerk brauchen keine Zustimmung.</p>
+    <p class="meta">Stand: 27. Oktober 2026. Diese Bedingungen gelten für den Online-Modus der Android-App <strong>Rummy</strong>. Die Spielarten ohne Netzwerk brauchen keine Zustimmung.</p>
 
     <h2>1. Anbieter</h2>
     <p>Robert Peringer, Ittlinger Hauptstraße 17, 94315 Straubing, Deutschland, E-Mail: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a>. Weitere Angaben stehen im <a href={paths.de.legal}>Impressum</a>.</p>
 
     <h2>2. Leistung</h2>
-    <p>Der Online-Modus ermöglicht Partien mit anderen Personen auf verschiedenen Geräten. Er ist kostenlos; in der kostenlosen Nutzung können bis zu fünf Online-Partien pro Kalenderwoche (Montag bis Sonntag, UTC) begonnen werden, danach ist der Online-Modus bis zum Wochenwechsel gesperrt (Partien gegen den Computer und am selben Gerät sind nicht betroffen, laufende Partien können zu Ende gespielt werden). Als begonnen gilt eine Partie, sobald alle Plätze besetzt sind; sie zählt für jede teilnehmende Person. Ich bemühe mich um einen stabilen Betrieb, kann aber keine ununterbrochene Verfügbarkeit zusagen; Wartung, Störungen und Änderungen können den Dienst zeitweise unterbrechen. Ich darf den Dienst aus sachlichem Grund ändern oder einstellen und werde das, wenn möglich, vorher in der App oder auf dieser Website ankündigen.</p>
+    <p>Der Online-Modus ermöglicht Partien mit anderen Personen auf verschiedenen Geräten. Er kann kostenlos genutzt werden; in der kostenlosen Nutzung können bis zu fünf Online-Partien pro Kalenderwoche (Montag bis Sonntag, UTC) begonnen werden, danach können bis zum Wochenwechsel keine weiteren Online-Partien begonnen werden (Partien gegen den Computer und am selben Gerät sind nicht betroffen, laufende Partien können zu Ende gespielt werden). Mit dem optionalen Premium-Abo (Abschnitt 3a) entfällt diese Grenze. Als begonnen gilt eine Partie, sobald alle Plätze besetzt sind; sie zählt für jede teilnehmende Person. Ich bemühe mich um einen stabilen Betrieb, kann aber keine ununterbrochene Verfügbarkeit zusagen; Wartung, Störungen und Änderungen können den Dienst zeitweise unterbrechen. Ich darf den Dienst aus sachlichem Grund ändern oder einstellen und werde das, wenn möglich, vorher in der App oder auf dieser Website ankündigen.</p>
 
     <h2>3. Zugang und Konto</h2>
     <ul>
       <li>Der Online-Modus richtet sich an Personen ab 18 Jahren.</li>
       <li>Das Konto gehört zu deiner E-Mail-Adresse, die du mit einem Code bestätigst. Pro Adresse gibt es ein Konto. Du bist dafür verantwortlich, dass die Adresse dir gehört und du Zugriff auf dein Postfach behältst. Gehen Gerät oder App-Daten verloren, meldest du dich mit der Adresse neu an.</li>
       <li>Der Spielername wird zunächst zufällig vergeben; du kannst ihn ändern (3 bis 20 Zeichen, nicht mit „KI“ beginnend). Er wird den Mitspielenden deiner Partien angezeigt. Ein Konto, das ein Jahr lang nicht genutzt wurde, wird gelöscht.</li>
+    </ul>
+
+    <h2>3a. Premium-Abo (optional)</h2>
+    <ul>
+      <li><strong>Inhalt:</strong> Mit dem Premium-Abo können Online-Partien ohne die Wochengrenze aus Abschnitt 2 begonnen werden. Die übrigen Funktionen sind unverändert.</li>
+      <li><strong>Kauf und Preis:</strong> Das Abo wird über Google Play abgeschlossen und bezahlt (Anbieter der Zahlungsabwicklung: Google). Laufzeit und Preis (einschließlich Umsatzsteuer, soweit anfallend) zeigt die App vor dem Kauf und Google Play im Kaufdialog; maßgeblich ist die dort angezeigte Angabe. Derzeit ist ein monatliches Abo vorgesehen, ein Jahresabo kann hinzukommen.</li>
+      <li><strong>Verlängerung und Kündigung:</strong> Das Abo verlängert sich automatisch um die gebuchte Laufzeit, bis du es kündigst. Du kündigst jederzeit in Google Play (Play Store → Zahlungen und Abos); die Kündigung wirkt zum Ende des bereits bezahlten Zeitraums, Premium bleibt bis dahin nutzbar. Ein Löschen des Online-Kontos oder der App beendet das Abo nicht; auch dann musst du es in Google Play kündigen.</li>
+      <li><strong>Zuordnung:</strong> Premium gilt für das Online-Konto, mit dem der Kauf in der App eingelöst wurde, und nicht für andere Konten; ein Kauf lässt sich nur einem Konto zuordnen. Die App gleicht Käufe beim Öffnen des Online-Bereichs mit dem Dienst ab; über „Käufe prüfen“ kannst du das anstoßen. Dass Premium auf einem Gerät oder Konto erscheint, kann einen Moment dauern.</li>
+      <li><strong>Widerruf, Erstattung, Störungen:</strong> Für Zahlung, Preisänderungen, Erstattungen und ein etwaiges Widerrufsrecht gelten zusätzlich die Bedingungen von Google Play; Erstattungen beantragst du dort. Wird ein Kauf erstattet, widerrufen oder endet das Abo, endet Premium mit dem Ablauf der bezahlten Zeit bzw. mit der Erstattung. Gesetzliche Rechte, die dir als Verbraucher zustehen, bleiben unberührt.</li>
+      <li><strong>Verfügbarkeit:</strong> Ich bemühe mich um stabilen Betrieb (Abschnitt 2); eine ununterbrochene Verfügbarkeit des Online-Modus ist auch mit Premium nicht zugesagt.</li>
     </ul>
 
     <h2>4. Fairer Umgang</h2>
@@ -59,19 +69,29 @@ const { lang } = Astro.props as { lang: Lang };
 ) : (
   <Base lang="en" page="terms" title="Terms of use – Rummy" description="Terms of use for the online mode of the Android app Rummy.">
     <h1>Terms of use for the online mode</h1>
-    <p class="meta">Last updated: 26 October 2026. These terms apply to the online mode of the Android app <strong>Rummy</strong>. The modes without a network need no agreement.</p>
+    <p class="meta">Last updated: 27 October 2026. These terms apply to the online mode of the Android app <strong>Rummy</strong>. The modes without a network need no agreement.</p>
 
     <h2>1. Provider</h2>
     <p>Robert Peringer, Ittlinger Hauptstraße 17, 94315 Straubing, Germany, email: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a>. Further details are in the <a href={paths.en.legal}>legal notice</a>.</p>
 
     <h2>2. Service</h2>
-    <p>The online mode lets you play with other people on different devices. It is free of charge. I aim for stable operation but cannot promise uninterrupted availability; maintenance, faults and changes can interrupt the service from time to time. I may change or discontinue the service for a factual reason and will announce this in the app or on this website beforehand where possible.</p>
+    <p>The online mode lets you play with other people on different devices. It can be used free of charge; in the free use up to five online games per calendar week (Monday to Sunday, UTC) can be started, after which no further online games can be started until the week changes (games against the computer and on the same device are not affected, and games in progress can be finished). A game counts as started as soon as all seats are filled; it counts for every participating person. With the optional premium subscription (section 3a) this limit does not apply. I aim for stable operation but cannot promise uninterrupted availability; maintenance, faults and changes can interrupt the service from time to time. I may change or discontinue the service for a factual reason and will announce this in the app or on this website beforehand where possible.</p>
 
     <h2>3. Access and account</h2>
     <ul>
       <li>The online mode is intended for people aged 18 and over.</li>
       <li>The account belongs to your email address, which you confirm with a code. There is one account per address. You are responsible for the address being yours and for keeping access to your mailbox. If a device or the app data is lost, you sign in again with the address.</li>
       <li>The player name is assigned at random at first; you can change it (3 to 20 characters, not starting with “KI”). It is shown to the other players in your games. An account that has not been used for a year is deleted.</li>
+    </ul>
+
+    <h2>3a. Premium subscription (optional)</h2>
+    <ul>
+      <li><strong>What it covers:</strong> With the premium subscription you can start online games without the weekly limit from section 2. All other features are unchanged.</li>
+      <li><strong>Purchase and price:</strong> The subscription is taken out and paid through Google Play (payment processing by Google). The app shows the term and price (including VAT where it applies) before purchase, and so does Google Play in the purchase dialog; the information shown there is authoritative. A monthly subscription is currently planned; a yearly one may be added.</li>
+      <li><strong>Renewal and cancellation:</strong> The subscription renews automatically for the booked term until you cancel it. You can cancel at any time in Google Play (Play Store → Payments &amp; subscriptions); cancellation takes effect at the end of the period already paid, and premium stays usable until then. Deleting the online account or the app does not end the subscription; you still have to cancel it in Google Play.</li>
+      <li><strong>Assignment:</strong> Premium applies to the online account with which the purchase was redeemed in the app, not to other accounts; a purchase can be assigned to one account only. The app compares purchases with the service when you open the online area; “Check purchases” triggers this. It can take a moment for premium to show on a device or account.</li>
+      <li><strong>Withdrawal, refunds, faults:</strong> The terms of Google Play also apply to payment, price changes, refunds and any right of withdrawal; you request refunds there. If a purchase is refunded or revoked or the subscription ends, premium ends when the paid period expires or on refund. Statutory rights you have as a consumer remain unaffected.</li>
+      <li><strong>Availability:</strong> I aim for stable operation (section 2); uninterrupted availability of the online mode is not promised even with premium.</li>
     </ul>
 
     <h2>4. Fair use</h2>
