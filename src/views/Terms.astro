@@ -1,0 +1,110 @@
+---
+import Base from '../layouts/Base.astro';
+import { paths, type Lang } from '../i18n';
+
+const { lang } = Astro.props as { lang: Lang };
+---
+
+{lang === 'de' ? (
+  <Base lang="de" page="terms" title="Nutzungsbedingungen – Rummy" description="Nutzungsbedingungen für den Online-Modus der Android-App Rummy.">
+    <h1>Nutzungsbedingungen für den Online-Modus</h1>
+    <p class="meta">Stand: 26. Oktober 2026. Diese Bedingungen gelten für den Online-Modus der Android-App <strong>Rummy</strong>. Die Spielarten ohne Netzwerk brauchen keine Zustimmung.</p>
+
+    <h2>1. Anbieter</h2>
+    <p>Robert Peringer, Ittlinger Hauptstraße 17, 94315 Straubing, Deutschland, E-Mail: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a>. Weitere Angaben stehen im <a href={paths.de.legal}>Impressum</a>.</p>
+
+    <h2>2. Leistung</h2>
+    <p>Der Online-Modus ermöglicht Partien mit anderen Personen auf verschiedenen Geräten. Er ist kostenlos. Ich bemühe mich um einen stabilen Betrieb, kann aber keine ununterbrochene Verfügbarkeit zusagen; Wartung, Störungen und Änderungen können den Dienst zeitweise unterbrechen. Ich darf den Dienst aus sachlichem Grund ändern oder einstellen und werde das, wenn möglich, vorher in der App oder auf dieser Website ankündigen.</p>
+
+    <h2>3. Zugang und Konto</h2>
+    <ul>
+      <li>Der Online-Modus richtet sich an Personen ab 18 Jahren.</li>
+      <li>Das Konto gehört zu deiner E-Mail-Adresse, die du mit einem Code bestätigst. Pro Adresse gibt es ein Konto. Du bist dafür verantwortlich, dass die Adresse dir gehört und du Zugriff auf dein Postfach behältst. Gehen Gerät oder App-Daten verloren, meldest du dich mit der Adresse neu an.</li>
+      <li>Der Spielername wird zunächst zufällig vergeben; du kannst ihn ändern (3 bis 20 Zeichen, nicht mit „KI“ beginnend). Er wird den Mitspielenden deiner Partien angezeigt. Ein Konto, das ein Jahr lang nicht genutzt wurde, wird gelöscht.</li>
+    </ul>
+
+    <h2>4. Fairer Umgang</h2>
+    <p>Bitte nutze den Dienst nur so, wie er gedacht ist. Nicht erlaubt sind insbesondere:</p>
+    <ul>
+      <li>automatisierte Zugriffe, Manipulation der App oder des Dienstes und der Versuch, Ablagen oder den Vorrat anderer einzusehen,</li>
+      <li>absichtliches Verzögern von Partien, das Anlegen vieler Konten zum Umgehen von Grenzen,</li>
+      <li>Handlungen, die den Dienst überlasten oder andere beeinträchtigen,</li>
+      <li>beleidigende, diskriminierende oder irreführende Anzeigenamen, das Vortäuschen einer anderen Person und die Belästigung anderer Spielender.</li>
+    </ul>
+    <p>Bei Verstößen darf ich Konten sperren oder löschen und Partien beenden.</p>
+
+    <h2>5. Weitere Funktionen</h2>
+    <ul>
+      <li><strong>Partner und Einladungen:</strong> Wer einem Spiel per Code beitritt, wird mit dem Ersteller gegenseitig als Partner gemerkt; mit Partnern kannst du Partien ohne Code beginnen. Du kannst Partner jederzeit entfernen.</li>
+      <li><strong>Gesamtstand:</strong> Zu Mitspielenden, gegen die du Partien beendet hast, zeigt die App dir den Gesamtstand (Siege, Niederlagen, Remis). Er hat keine Bedeutung außerhalb der App.</li>
+      <li><strong>Zugfrist:</strong> Wer eine Partie erstellt, wählt eine Zeit pro Zug oder keine. Gilt eine Zeit, kann der Ersteller festlegen, ob sie pausiert, solange der Spieler am Zug nicht in der Partie ist, weil er die App oder die Partie verlassen hat (Standard), oder weiterläuft. Zu zweit wird bei abgelaufener Zeit nur gezogen, es übernimmt kein Computer; ab drei Plätzen kann ein Computer einspringen.</li>
+      <li><strong>Benachrichtigungen:</strong> Push-Nachrichten („Du bist dran“, Einladung) gibt es nur, wenn du sie einschaltest; sie sind standardmäßig aus und lassen sich jederzeit abschalten.</li>
+    </ul>
+
+    <h2>6. Blockieren, Melden und Sperren</h2>
+    <p>Du kannst Mitspielende blockieren: Ihr könnt euch dann nicht mehr einladen und nicht gegenseitig in Partien beitreten. Du kannst sie auch melden, mit einem festen Grund (Anzeigename, Verhalten, Sonstiges) und ohne Freitext. Ich prüfe Meldungen nach Möglichkeit, bin dazu aber nicht verpflichtet. Bei Verstößen gegen Abschnitt 4 darf ich ein Konto sperren; dabei wird es gelöscht, und die E-Mail-Adresse wird nur als Prüfwert gespeichert, damit sie sich nicht neu anmeldet. Hältst du eine Sperre für unberechtigt, schreibe mir an die oben genannte Adresse; ich prüfe das und hebe sie bei Berechtigung auf.</p>
+
+    <h2>7. Keine Einsätze, keine Preise</h2>
+    <p>Im Online-Modus wird nicht um Geld oder Wertgegenstände gespielt, und es gibt keine Gewinne.</p>
+
+    <h2>8. Haftung</h2>
+    <p>Ich hafte unbeschränkt bei Vorsatz und grober Fahrlässigkeit, bei Verletzung von Leben, Körper oder Gesundheit und nach dem Produkthaftungsgesetz. Bei leicht fahrlässiger Verletzung wesentlicher Vertragspflichten ist die Haftung auf den vorhersehbaren, typischen Schaden begrenzt; im Übrigen ist die Haftung bei leichter Fahrlässigkeit ausgeschlossen. Ein Anspruch darauf, dass Spielstände laufender oder beendeter Online-Partien aufbewahrt oder wiederhergestellt werden, besteht nicht; die oben genannte Haftung bleibt davon unberührt.</p>
+
+    <h2>9. Änderungen der Bedingungen, anwendbares Recht</h2>
+    <p>Ich kann diese Bedingungen mit Wirkung für die Zukunft ändern, wenn das aus sachlichen Gründen nötig ist; die jeweils gültige Fassung steht hier. Es gilt deutsches Recht. Zwingende Verbraucherschutzvorschriften des Staates, in dem du lebst, bleiben unberührt.</p>
+
+    <h2>10. Datenschutz</h2>
+    <p>Wie Daten im Online-Modus verarbeitet werden, steht in der <a href={paths.de.privacy}>Datenschutzerklärung</a>. Ein Konto löschst du in der App oder <a href={paths.de.deletion}>über diese Seite</a>.</p>
+  </Base>
+) : (
+  <Base lang="en" page="terms" title="Terms of use – Rummy" description="Terms of use for the online mode of the Android app Rummy.">
+    <h1>Terms of use for the online mode</h1>
+    <p class="meta">Last updated: 26 October 2026. These terms apply to the online mode of the Android app <strong>Rummy</strong>. The modes without a network need no agreement.</p>
+
+    <h2>1. Provider</h2>
+    <p>Robert Peringer, Ittlinger Hauptstraße 17, 94315 Straubing, Germany, email: <a href="mailto:FsNaviVfr@gmail.com">FsNaviVfr@gmail.com</a>. Further details are in the <a href={paths.en.legal}>legal notice</a>.</p>
+
+    <h2>2. Service</h2>
+    <p>The online mode lets you play with other people on different devices. It is free of charge. I aim for stable operation but cannot promise uninterrupted availability; maintenance, faults and changes can interrupt the service from time to time. I may change or discontinue the service for a factual reason and will announce this in the app or on this website beforehand where possible.</p>
+
+    <h2>3. Access and account</h2>
+    <ul>
+      <li>The online mode is intended for people aged 18 and over.</li>
+      <li>The account belongs to your email address, which you confirm with a code. There is one account per address. You are responsible for the address being yours and for keeping access to your mailbox. If a device or the app data is lost, you sign in again with the address.</li>
+      <li>The player name is assigned at random at first; you can change it (3 to 20 characters, not starting with “KI”). It is shown to the other players in your games. An account that has not been used for a year is deleted.</li>
+    </ul>
+
+    <h2>4. Fair use</h2>
+    <p>Please use the service only as intended. In particular, the following are not allowed:</p>
+    <ul>
+      <li>automated access, tampering with the app or the service, and attempts to see other players’ racks or the pool,</li>
+      <li>deliberately delaying games, and creating many accounts to get around limits,</li>
+      <li>actions that overload the service or affect others,</li>
+      <li>offensive, discriminatory or misleading display names, impersonating another person, and harassing other players.</li>
+    </ul>
+    <p>In case of violations I may block or delete accounts and end games.</p>
+
+    <h2>5. Further features</h2>
+    <ul>
+      <li><strong>Partners and invitations:</strong> Anyone who joins a game with a code and the creator of that game are saved as partners of each other; with partners you can start games without a code. You can remove partners at any time.</li>
+      <li><strong>Overall record:</strong> For players against whom you have finished games the app shows you the overall record (wins, losses, draws). It has no meaning outside the app.</li>
+      <li><strong>Turn clock:</strong> Whoever creates a game chooses a time per turn or none. If a time applies, the creator can decide whether it pauses while the player to move is not in the game, having left the app or the game (default), or keeps running. In a two-player game only a draw is made when the time runs out and no computer takes over; with three or more seats a computer may step in.</li>
+      <li><strong>Notifications:</strong> Push messages (“Your turn”, invitation) exist only if you turn them on; they are off by default and can be turned off at any time.</li>
+    </ul>
+
+    <h2>6. Blocking, reporting and bans</h2>
+    <p>You can block other players: you can then no longer invite each other or join each other’s games. You can also report them, with a fixed reason (display name, behaviour, other) and without free text. I review reports where possible but am not obliged to. In case of violations of section 4 I may ban an account; it is then deleted, and the email address is stored only as a check value so that it cannot sign up again. If you think a ban is unjustified, write to the address above; I will look into it and lift the ban where justified.</p>
+
+    <h2>7. No stakes, no prizes</h2>
+    <p>The online mode is not played for money or valuables, and there are no winnings.</p>
+
+    <h2>8. Liability</h2>
+    <p>I am liable without limit for intent and gross negligence, for injury to life, body or health, and under the Product Liability Act. For slightly negligent breach of essential contractual obligations, liability is limited to the foreseeable, typical damage; otherwise liability for slight negligence is excluded. There is no entitlement to game states of running or finished online games being kept or restored; the liability described above remains unaffected.</p>
+
+    <h2>9. Changes to the terms, applicable law</h2>
+    <p>I may change these terms with effect for the future where this is necessary for factual reasons; the current version is published here. German law applies. Mandatory consumer protection provisions of the country where you live remain unaffected.</p>
+
+    <h2>10. Privacy</h2>
+    <p>How data is processed in the online mode is described in the <a href={paths.en.privacy}>privacy policy</a>. You can delete an account in the app or <a href={paths.en.deletion}>on this page</a>.</p>
+  </Base>
+)}

@@ -1,0 +1,20 @@
+name: Online-Dienst aufräumen
+
+# Löscht täglich alte beendete und nie gestartete Online-Partien. Braucht die Repository-Secrets
+# ONLINE_URL (z. B. https://rummy-game.pages.dev) und MAINTENANCE_TOKEN (dasselbe Geheimnis wie in Cloudflare).
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wartungsaufruf
+        env:
+          ONLINE_URL: ${{ secrets.ONLINE_URL }}
+          MAINTENANCE_TOKEN: ${{ secrets.MAINTENANCE_TOKEN }}
+        run: |
+          if [ -z "$ONLINE_URL" ] || [ -z "$MAINTENANCE_TOKEN" ]; then echo "Secrets fehlen, übersprungen."; exit 0; fi
+          curl --fail --silent --show-error -X POST -H "X-Maintenance: $MAINTENANCE_TOKEN" "$ONLINE_URL/api/maintenance"
