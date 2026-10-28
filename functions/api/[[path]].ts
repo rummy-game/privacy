@@ -21,6 +21,8 @@ interface Env {
   FCM_SERVICE_ACCOUNT?: string;
   /** Dienstkonto (JSON) mit Zugriff auf die Play-Console-Bestelldaten, prüft gekaufte Abos; ohne den Schlüssel gibt es kein Premium per Kauf. */
   PLAY_SERVICE_ACCOUNT?: string;
+  /** Adressen (Komma-getrennt), die ohne Kauf Premium haben; gilt ab der nächsten Anmeldung (optional). */
+  PREMIUM_EMAILS?: string;
   /** E-Mail-Adresse des Betreibers: bekommt bei jeder Meldung eines Spielers eine Mail (optional). */
   REPORT_TO?: string;
   /** Weitere Hostnamen (Komma-getrennt), die die API bedienen darf, z. B. eine eigene Domain. */
@@ -41,6 +43,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, waitUntil })
   const play = env.PLAY_SERVICE_ACCOUNT ? new GooglePlayVerifier(env.PLAY_SERVICE_ACCOUNT) : new NoPlayVerifier();
   const service = new Service(new D1Store(env.DB), Date.now, cryptoRng, mailer, testLogin, pusher, play);
   service.reportTo = env.REPORT_TO ?? '';
+  service.premiumEmails = new Set((env.PREMIUM_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean));
   try {
     const response = await handleApi(request, service, env.MAINTENANCE_TOKEN ?? '');
     waitUntil(service.flush());
