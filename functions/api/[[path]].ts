@@ -21,7 +21,7 @@ interface Env {
   FCM_SERVICE_ACCOUNT?: string;
   /** Dienstkonto (JSON) mit Zugriff auf die Play-Console-Bestelldaten, prüft gekaufte Abos; ohne den Schlüssel gibt es kein Premium per Kauf. */
   PLAY_SERVICE_ACCOUNT?: string;
-  /** Adressen (Komma-getrennt), die ohne Kauf Premium haben; gilt ab der nächsten Anmeldung (optional). */
+  /** Adressen (Komma-getrennt), die ohne Kauf dauerhaft Premium haben, solange sie in der Liste stehen (optional). */
   PREMIUM_EMAILS?: string;
   /** E-Mail-Adresse des Betreibers: bekommt bei jeder Meldung eines Spielers eine Mail (optional). */
   REPORT_TO?: string;

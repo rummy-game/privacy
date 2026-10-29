@@ -128,7 +128,7 @@ export class Service {
   /** Adresse des Betreibers für Meldungen (leer = keine Mail; die Meldungen bleiben abrufbar). */
   reportTo = '';
 
-  /** Adressen (klein geschrieben), die ohne Kauf Premium haben: gilt ab der nächsten Anmeldung, 40 Tage, bei jeder Anmeldung erneuert. */
+  /** Adressen (klein geschrieben), die ohne Kauf dauerhaft Premium haben, solange sie in der Liste stehen (sofort, ohne neue Anmeldung). */
   premiumEmails: ReadonlySet<string> = new Set();
 
   /** Laufende Benachrichtigungen; der Aufrufer wartet nach der Antwort darauf (`waitUntil`). */
@@ -448,7 +448,6 @@ export class Service {
     if (existing) {
       await this.store.addSecret(existing.id, secretHash, now);
       await this.store.touchAccount(existing.id, now);
-      await this.grantListedPremium(existing.id, email);
       return { error: null, account: { id: existing.id, secret, name: existing.name, isNew: false } };
     }
     if ((await this.store.countAccounts()) >= MAX_ACCOUNTS) return { error: 'busy' };
@@ -456,15 +455,13 @@ export class Service {
       const account = { id: this.token(8), secretHash: '', email, name: randomName(this.rng), lastSeen: now };
       if (await this.store.createAccount(account)) {
         await this.store.addSecret(account.id, secretHash, now);
-        await this.grantListedPremium(account.id, email);
-        return { error: null, account: { id: account.id, secret, name: account.name, isNew: true } };
+          return { error: null, account: { id: account.id, secret, name: account.name, isNew: true } };
       }
       // Name oder Kennung schon vergeben, oder eine parallele Anfrage hat das Konto zur Adresse angelegt.
       const raced = await this.store.findAccountByEmail(email);
       if (raced) {
         await this.store.addSecret(raced.id, secretHash, now);
-        await this.grantListedPremium(raced.id, email);
-        return { error: null, account: { id: raced.id, secret, name: raced.name, isNew: false } };
+          return { error: null, account: { id: raced.id, secret, name: raced.name, isNew: false } };
       }
     }
     return { error: 'busy' };
@@ -719,6 +716,10 @@ export class Service {
   // --- Wochenkontingent ---
 
   async isPremium(accountId: string): Promise<boolean> {
+    if (this.premiumEmails.size > 0) {
+      const email = (await this.store.getAccount(accountId))?.email;
+      if (email && this.premiumEmails.has(email.toLowerCase())) return true;
+    }
     return (await this.store.premiumUntil(accountId)) > this.clock();
   }
 
@@ -752,13 +753,6 @@ export class Service {
     if ((await this.store.bindPlayToken(await sha256(purchaseToken), accountId)) !== accountId) return 'foreign';
     if (!sub.active) return 'inactive';
     return (await this.grantPremium(accountId, sub.expiresAt, 'play')) ? 'ok' : 'invalid';
-  }
-
-  /** Adresse steht in der Betreiberliste: Premium für 40 Tage, einen längeren Kauf nicht verkürzen. */
-  private async grantListedPremium(accountId: string, email: string): Promise<void> {
-    if (!this.premiumEmails.has(email)) return;
-    const until = this.clock() + 40 * DAY_MS;
-    if ((await this.store.premiumUntil(accountId)) < until) await this.grantPremium(accountId, until, 'admin');
   }
 
   /** Premium für [days] Tage ab jetzt, 0 = beenden. */
