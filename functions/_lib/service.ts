@@ -647,6 +647,7 @@ export class Service {
         myTurn: g.status === 'RUNNING' && g.state?.current === seat,
         names: g.slots.map((x) => (this.isOpen(x) ? '-' : x.name)),
         deadlineAt: g.deadlineAt,
+        outcome: g.status === 'FINISHED' ? (g.state?.winner == null ? 'D' : g.state.winner === seat ? 'W' : 'L') : undefined,
       });
     }
     return out.sort((a, b) => b.deadlineAt - a.deadlineAt);
