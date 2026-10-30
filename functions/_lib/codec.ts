@@ -58,6 +58,8 @@ export interface OnlineSummary {
   deadlineAt: number;
   /** Nur bei beendeten Partien: gewonnen, verloren, unentschieden (aus Sicht des Kontos). */
   outcome?: 'W' | 'L' | 'D';
+  /** Nur bei beendeten Partien: Ende in Epoch-Millisekunden (wird an das Ausgangs-Token gehängt, alte Clients ignorieren es). */
+  finishedAt?: number;
 }
 
 export interface OnlineReply {
@@ -133,7 +135,7 @@ export function encodeSummaries(list: OnlineSummary[]): string {
   const lines = ['RUMMY-LIST 1'];
   for (const g of list) {
     const names = g.names.map((n) => clean(n).replace(/\|/g, ' ')).join('|');
-    lines.push(`game ${g.id} ${g.code} ${g.status} ${flag(g.myTurn)}${g.outcome ?? ''} ${g.deadlineAt} ${names}`);
+    lines.push(`game ${g.id} ${g.code} ${g.status} ${flag(g.myTurn)}${g.outcome ?? ''}${g.outcome && g.finishedAt ? g.finishedAt : ''} ${g.deadlineAt} ${names}`);
   }
   lines.push('end');
   return lines.join('\n') + '\n';
