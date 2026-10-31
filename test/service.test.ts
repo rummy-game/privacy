@@ -243,6 +243,48 @@ describe('Partien', () => {
     expect((await viewOf(service, slow.id, game)).rack).toHaveLength(15);
   });
 
+  it('erster Zug: die Frist beginnt erst, wenn der Spieler am Zug die Partie öffnet', async () => {
+    const { service, clock } = setup();
+    const accA = (await service.createAccount())!;
+    const accB = (await service.createAccount())!;
+    const created = await service.createGame(accA.id, req(2, 60, 'BEGINNER', defaultRules(), false));
+    const joined = (await service.join(accB.id, created.view!.code)).view!;
+    const game = created.view!.id;
+    // Der Beitretende hat die Partie geöffnet; ist der Gastgeber am Zug, wartet dessen Frist.
+    const hostFirst = joined.current !== joined.mySeat;
+    expect(hostFirst).toBe(true);
+    const first = hostFirst ? accA : accB;
+    const other = hostFirst ? accB : accA;
+    if (!hostFirst) {
+      expect(joined.pausedAt).toBe(0);
+      return;
+    }
+    expect(joined.pausedAt).toBeGreaterThan(0);
+    clock.now += 3 * 3600 * 1000;
+    expect((await viewOf(service, other.id, game)).pausedAt).toBeGreaterThan(0);
+    expect((await viewOf(service, other.id, game)).rack).toHaveLength(14);
+    const opened = await viewOf(service, first.id, game);
+    expect(opened.pausedAt).toBe(0);
+    expect(opened.deadlineAt).toBe(clock.now + 60_000);
+    clock.now = opened.deadlineAt + 1000;
+    expect((await viewOf(service, first.id, game)).rack).toHaveLength(15);
+  });
+
+  it('erster Zug: nach 24 Stunden läuft die Frist auch ohne Öffnen', async () => {
+    const { service, clock } = setup();
+    const accA = (await service.createAccount())!;
+    const accB = (await service.createAccount())!;
+    const created = await service.createGame(accA.id, req(2, 60, 'BEGINNER', defaultRules(), false));
+    const joined = (await service.join(accB.id, created.view!.code)).view!;
+    if (joined.current === joined.mySeat) return;
+    const game = created.view!.id;
+    clock.now += 24 * 3600 * 1000 + 1000;
+    expect((await viewOf(service, accB.id, game)).pausedAt).toBe(0);
+    clock.now += 61_000;
+    const v = await viewOf(service, accB.id, game);
+    expect(v.current).toBe(v.mySeat); // der Gastgeber hat den Zug versäumt, jetzt ist der Beitretende dran
+  });
+
   it('ohne die Regel läuft die Frist auch bei Abwesenheit weiter', async () => {
     const { service, clock, a, b, game } = await twoPlayers(60, defaultRules(), false);
     const [slow] = await turnOwner(service, a, b, game);

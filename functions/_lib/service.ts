@@ -23,6 +23,9 @@ import { NoPusher, pushText } from './push';
 import type { Pusher } from './push';
 import type { Game, ReportEntry, Slot, Store, Stored } from './store';
 
+/** Längstes Warten der Frist des ersten Zuges auf das Öffnen der Partie. */
+const HOLD_FIRST_MS = 24 * 3600 * 1000;
+
 export const MAX_MISSES = 3;
 /** Höchstens so viele Plätze füllt beim Start der Computer (schont die Rechenzeit des Dienstes). */
 export const MAX_AI_FILL = 1;
@@ -587,7 +590,10 @@ export class Service {
         if (!slot) return { reply: fail('full', 'Das Spiel ist voll') };
         slot.accountId = accountId;
         slot.name = name;
-        if (!g.slots.some((s) => this.isOpen(s))) this.begin(g);
+        if (!g.slots.some((s) => this.isOpen(s))) {
+          this.begin(g);
+          this.releaseHold(g, accountId);
+        }
         return { reply: this.ok(g, accountId) };
       },
       accountId,
@@ -606,6 +612,7 @@ export class Service {
           return { reply: fail('toomanyai', 'Höchstens ein Computerplatz: es fehlen noch Mitspieler') };
         }
         this.begin(g);
+        this.releaseHold(g, accountId);
         return { reply: this.ok(g, accountId) };
       },
       accountId,
@@ -618,6 +625,7 @@ export class Service {
       (g) => {
         if (!g.slots.some((s) => s.accountId === accountId)) return { reply: fail('forbidden') };
         this.sweep(g);
+        this.releaseHold(g, accountId);
         return { reply: this.ok(g, accountId) };
       },
       accountId,
@@ -659,6 +667,7 @@ export class Service {
       const seat = g.slots.findIndex((s) => s.accountId === accountId);
       if (seat < 0) return { reply: fail('forbidden') };
       this.sweep(g);
+      this.releaseHold(g, accountId);
       const state = g.state;
       const err = (error: string, detail: string): Outcome => ({ reply: { error, detail, view: this.viewFor(g, accountId) } });
       if (g.status !== 'RUNNING' || !state) return err('notrunning', 'Die Partie läuft nicht');
@@ -855,6 +864,7 @@ export class Service {
     g.event = { kind: 'started', player: state.current, count: 0 };
     g.deadlineAt = 0;
     this.scheduleDeadline(g);
+    this.holdFirstTurn(g);
     this.advanceAi(g);
   }
 
@@ -893,7 +903,33 @@ export class Service {
   private scheduleDeadline(g: Game): void {
     g.deadlineAt = g.limitSeconds > 0 ? this.clock() + g.limitSeconds * 1000 : 0;
     g.pausedAt = 0;
+    g.holdFirst = false;
     this.syncPause(g);
+  }
+
+  /**
+   * Erster Zug einer Online-Partie: Sitzt dort ein Mensch, beginnt die Frist erst, wenn er die Partie geöffnet hat
+   * (Anfrage der Partie, Meldung „im Vordergrund“ oder Zug), spätestens nach HOLD_FIRST_MS. Unabhängig von der Pausenregel.
+   */
+  private holdFirstTurn(g: Game): void {
+    if (g.deadlineAt === 0 || !g.state) return;
+    const slot = g.slots[g.state.current];
+    if (slot.accountId === null || slot.ai !== null) return;
+    g.holdFirst = true;
+    g.pausedAt = this.clock();
+  }
+
+  private endHold(g: Game): void {
+    g.deadlineAt += this.clock() - (g.pausedAt ?? 0);
+    g.pausedAt = 0;
+    g.holdFirst = false;
+    this.syncPause(g);
+  }
+
+  /** Der Spieler am Zug hat die Partie geöffnet: die Frist des ersten Zuges beginnt. */
+  private releaseHold(g: Game, accountId: string): void {
+    if (!g.holdFirst || !g.state || g.slots[g.state.current].accountId !== accountId) return;
+    this.endHold(g);
   }
 
   /**
@@ -906,6 +942,7 @@ export class Service {
       g.pausedAt = 0;
       return;
     }
+    if (g.holdFirst) return;
     if (!g.pauseWhenAway || g.deadlineAt === 0) return;
     const slot = g.slots[g.state.current];
     const shouldPause = slot.accountId !== null && slot.ai === null && slot.away === true;
@@ -925,6 +962,7 @@ export class Service {
         const slot = g.slots.find((s) => s.accountId === accountId);
         if (!slot) return { reply: fail('forbidden') };
         this.sweep(g);
+        if (!away) this.releaseHold(g, accountId);
         if (Boolean(slot.away) !== away) {
           slot.away = away;
           this.syncPause(g);
@@ -940,6 +978,7 @@ export class Service {
    * Versäumnissen in Folge der Computer den Platz, bei zwei Plätzen nie (es wird nur gezogen).
    */
   private sweep(g: Game): void {
+    if (g.holdFirst && this.clock() - (g.pausedAt ?? 0) > HOLD_FIRST_MS) this.endHold(g);
     let guard = 0;
     while (g.status === 'RUNNING' && g.deadlineAt > 0 && !g.pausedAt && this.clock() > g.deadlineAt && g.state && guard++ < 50) {
       const state = g.state;

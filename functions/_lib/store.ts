@@ -32,6 +32,8 @@ export interface Game {
   pauseWhenAway?: boolean;
   /** Seit wann die Frist gerade ruht, 0 = läuft. */
   pausedAt?: number;
+  /** Die Frist des ersten Zuges wartet, bis der Spieler am Zug die Partie geöffnet hat (`pausedAt` = Beginn des Wartens). */
+  holdFirst?: boolean;
 }
 
 export interface Account {
