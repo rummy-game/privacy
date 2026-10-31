@@ -189,6 +189,11 @@ describe('Partien', () => {
     expect(vb.seats.some((s) => s.ai !== null)).toBe(false);
     // Der Aufgebende sieht die beendete Partie weiter und kann sie später verlassen
     expect(await service.list(a.id)).toHaveLength(1);
+    // Ein Abbruch ist kein Sieg und keine Niederlage: eigener Ausgang, keine Bilanz
+    expect((await service.list(a.id))[0].outcome).toBe('A');
+    expect((await service.list(b.id))[0].outcome).toBe('B');
+    expect(await service.records(a.id)).toEqual([]);
+    expect(await service.records(b.id)).toEqual([]);
     await service.resign(a.id, game);
     expect(await service.list(a.id)).toHaveLength(0);
   });

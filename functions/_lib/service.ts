@@ -656,7 +656,13 @@ export class Service {
         names: g.slots.map((x) => (this.isOpen(x) ? '-' : x.name)),
         deadlineAt: g.deadlineAt,
         finishedAt: g.status === 'FINISHED' && g.finishedAt ? g.finishedAt : undefined,
-        outcome: g.status === 'FINISHED' ? (g.state?.winner == null ? 'D' : g.state.winner === seat ? 'W' : 'L') : undefined,
+        outcome:
+          this.abortedBy(g) !== null
+            ? this.abortedBy(g) === seat
+              ? 'A'
+              : 'B'
+            : g.status === 'FINISHED'
+              ? (g.state?.winner == null ? 'D' : g.state.winner === seat ? 'W' : 'L') : undefined,
       });
     }
     return out.sort((a, b) => b.deadlineAt - a.deadlineAt);
@@ -823,8 +829,16 @@ export class Service {
    * hat (Remis, wenn niemand gewonnen hat). Zwei Verlierer zählen untereinander nicht; ausgestiegene Spieler (durch den
    * Computer ersetzt) sind nicht mehr dabei.
    */
+  /** Platz, der die laufende Partie aufgegeben hat (Abbruch), sonst `null`. */
+  private abortedBy(g: Game): number | null {
+    const e = g.event;
+    return g.status === 'FINISHED' && e?.kind === 'resigned' ? e.player : null;
+  }
+
   private async recordFinish(g: Game): Promise<void> {
     if (!g.state) return;
+    // Ein Abbruch zählt in keiner Bilanz.
+    if (this.abortedBy(g) !== null) return;
     const winner = g.state.winner;
     const humans = g.slots.map((s, seat) => ({ id: s.accountId, seat })).filter((h): h is { id: string; seat: number } => h.id !== null);
     for (const a of humans) {

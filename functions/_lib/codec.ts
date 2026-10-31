@@ -57,7 +57,8 @@ export interface OnlineSummary {
   names: string[];
   deadlineAt: number;
   /** Nur bei beendeten Partien: gewonnen, verloren, unentschieden (aus Sicht des Kontos). */
-  outcome?: 'W' | 'L' | 'D';
+  /** W Sieg, L Niederlage, D Remis, A selbst abgebrochen, B vom Mitspieler abgebrochen. */
+  outcome?: 'W' | 'L' | 'D' | 'A' | 'B';
   /** Nur bei beendeten Partien: Ende in Epoch-Millisekunden (wird an das Ausgangs-Token gehängt, alte Clients ignorieren es). */
   finishedAt?: number;
 }
